@@ -1,0 +1,7 @@
+{
+  "profile": "default",
+  "apiBaseUrl": "https://api.example.invalid",
+  "webBaseUrl": "https://share.example.invalid",
+  "allowedSourceRoots": ["/absolute/path/to/approved/docs"],
+  "credentialEnvVar": "SHARE_NOTE_CREDENTIAL"
+}

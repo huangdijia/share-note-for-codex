@@ -1,0 +1,40 @@
+{
+  "source": {
+    "clientCommit": "30aa5fec60725e1c3a97842255be865a3fb542f3",
+    "serverCommit": "c9d98c33a7f3301c12584b3fb4df05260dbb35d2",
+    "capturedAt": "2026-09-01",
+    "note": "Deterministic interoperability fixtures generated from the audited wire formats; no service credential or user data is present."
+  },
+  "plaintext": "{\"content\":\"<article><h1>协议夹具 🚀</h1><p>Hello, 世界。</p></article>\",\"basename\":\"协议夹具 🚀\"}",
+  "modern": {
+    "codec": "aes-gcm-random-ivs-v1.5",
+    "key": "AAECAwQFBgcICQoLDA0ODw",
+    "payload": {
+      "ciphertext": [
+        "vwxgwGE704Fj/2fX+0aZSlPfGOIIyAOOuy6kno+rv0h2YMS6NoYLg3kg6eey4W8n+Ya5TpWv1MRL8ZUgYAXKe97aLotSqUG0r/IOKc7NyR9UrpbsGLDLvjwV9sXK8hj7HshuNkRrBCyU3rVPfOWDuSGcTm3IqK+zInf5NNUtql59"
+      ],
+      "ivs": ["EBESExQVFhcYGRob"]
+    }
+  },
+  "historical142": {
+    "codec": "aes-gcm-index-iv-v1.4.2",
+    "readOnly": true,
+    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "payload": {
+      "ciphertext": [
+        "dZ7WsdtY5tN8ipMXJE3j7bsgOjYWvQgevns+DC1R87Pq5gM5ndJImalDTdqp/1dy2TkJgxUdKYlwUoewrfXCB2ntAiXh72zNsvunrnVILad/ORT7QdsgL1XLcWHEfTQ9WLngqcn7VUyczkbEHL46f1FjQeBao4Q99X1c+knTlVfK"
+      ]
+    }
+  },
+  "historical113": {
+    "codec": "aes-gcm-legacy-v1.1.3",
+    "readOnly": true,
+    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "payload": {
+      "ciphertext": [
+        "Dcxs4oZCDukT69SblqDnr/AcK0hIyxQlIFd9csv+V97uh5yWxStXh6RtLT6vlhS4pLYsdLrC9ZA3EVPixODIRNWU+AN8gLYHLfUtjbAqHAjZ3TwftcHXlsjAA6L9v+zDdJ9D1yQu0j1QXkprlsvpQLVm1aDfcuKhYyezBKUN7p53"
+      ],
+      "iv": "//79/Pv6+fj39vX0"
+    }
+  }
+}

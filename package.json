@@ -1,0 +1,33 @@
+{
+  "name": "codex-share-note",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Share Note HTTP client and Codex plugin",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run typecheck && npm test && node scripts/build.mjs",
+    "bundle": "node scripts/build.mjs",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:contract": "vitest run tests/contract",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "marked": "18.0.11",
+    "parse5": "8.0.1",
+    "sanitize-html": "2.17.7",
+    "turndown": "7.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "26.4.0",
+    "@types/sanitize-html": "2.16.1",
+    "@types/turndown": "5.0.6",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "share-note",
+  "version": "0.1.0",
+  "description": "Preview, publish, read, update, list, and delete Share Note pages through a bundled local HTTP client.",
+  "author": {
+    "name": "Share Note for Codex contributors"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Share Note for Codex",
+    "shortDescription": "Securely preview and manage Share Note pages.",
+    "longDescription": "Uses a bundled local client to preview, publish, read, update, list, and delete Share Note pages without Obsidian or a resident service.",
+    "developerName": "Share Note for Codex contributors",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write", "Local files"],
+    "defaultPrompt": [
+      "Preview this Markdown file for Share Note without uploading it.",
+      "Publish this file to Share Note with encryption after preview.",
+      "List the Share Note records saved locally for this project."
+    ]
+  }
+}

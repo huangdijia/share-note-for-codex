@@ -1,0 +1,26 @@
+body {
+  color: #202124;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.65;
+  margin: 2rem auto;
+  max-width: 860px;
+  padding: 0 1.25rem;
+}
+
+pre {
+  background: #f6f8fa;
+  border-radius: 0.5rem;
+  overflow: auto;
+  padding: 1rem;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  border: 1px solid #d0d7de;
+  padding: 0.4rem 0.6rem;
+}
