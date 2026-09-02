@@ -4,7 +4,10 @@ import path from 'node:path'
 import { ShareNoteApplication } from './app.js'
 import { ShareNoteError, toSafeError } from './errors.js'
 import { userDataDirectory } from './platform/paths.js'
-import { MacOsKeychainSecretStore } from './secrets/macos-keychain.js'
+import {
+  EncryptedFileSecretStore,
+  EnvironmentMasterPasswordProvider
+} from './secrets/encrypted-file.js'
 
 function usage(): never {
   throw new ShareNoteError('invalid_request', 'Usage: share-note.mjs <action> --request <json-file>')
@@ -27,9 +30,10 @@ async function requestFromArguments(arguments_: string[]): Promise<{ action: str
 
 async function main(): Promise<void> {
   const { action, request } = await requestFromArguments(process.argv.slice(2))
+  const dataDirectory = userDataDirectory()
   const application = new ShareNoteApplication(
-    userDataDirectory(),
-    new MacOsKeychainSecretStore()
+    dataDirectory,
+    new EncryptedFileSecretStore(dataDirectory, new EnvironmentMasterPasswordProvider(process.env))
   )
   let result: unknown
   switch (action) {

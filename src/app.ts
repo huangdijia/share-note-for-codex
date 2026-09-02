@@ -53,6 +53,9 @@ export class ShareNoteApplication {
     if (!/^[A-Z][A-Z0-9_]{0,127}$/.test(request.credentialEnvVar)) {
       throw new ShareNoteError('invalid_request', 'credentialEnvVar must name a process-scoped environment variable')
     }
+    if (request.credentialEnvVar === 'SHARE_NOTE_MASTER_PASSWORD') {
+      throw new ShareNoteError('invalid_request', 'credentialEnvVar cannot reuse SHARE_NOTE_MASTER_PASSWORD')
+    }
     const rawCredential = this.environment[request.credentialEnvVar]
     if (!rawCredential) {
       throw new ShareNoteError('credential_missing', 'Credential import environment variable is not set')
@@ -71,9 +74,8 @@ export class ShareNoteApplication {
       throw new ShareNoteError('credential_missing', 'Credential import must contain non-empty uid and apiKey strings')
     }
     const placeholder = {
-      type: 'macos-keychain' as const,
-      service: 'pending',
-      account: request.profile
+      type: 'encrypted-file' as const,
+      id: `credentials:${request.profile}`
     }
     await buildProfileConfig(request, placeholder)
     const credentialRef = await this.secrets.storeCredential(request.profile, {
@@ -88,7 +90,7 @@ export class ShareNoteApplication {
       status: 'configured',
       profile: profile.name,
       protocolProfile: profile.protocolProfile,
-      warnings: ['Credential was imported into the platform secure store; online compatibility has not yet been verified.']
+      warnings: ['Credential was encrypted in the local vault; online compatibility has not yet been verified.']
     }
   }
 

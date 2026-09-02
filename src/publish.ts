@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import type { ProfileConfig } from './config.js'
+import { credentialIdentityReference, type ProfileConfig } from './config.js'
 import { encryptModern } from './crypto/codecs.js'
 import { ShareNoteError } from './errors.js'
 import { ShareNoteHttpClient, type FetchImplementation } from './http/client.js'
@@ -178,7 +178,7 @@ export async function publishPreview(
     profile: profile.name,
     apiOrigin: new URL(profile.apiBaseUrl).origin,
     webOrigin: new URL(profile.webBaseUrl).origin,
-    identityRef: `${profile.credentialRef.service}:${profile.credentialRef.account}`,
+    identityRef: credentialIdentityReference(profile.credentialRef),
     sourcePath: preview.sourceRealPath,
     remoteFilename: remote.filename,
     shareUrl: remote.baseUrl,

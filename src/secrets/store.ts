@@ -13,22 +13,21 @@ export class MemorySecretStore implements SecretStore {
 
   async storeCredential(profile: string, credential: ShareNoteCredential): Promise<CredentialReference> {
     const reference: CredentialReference = {
-      type: 'macos-keychain',
-      service: 'memory.credentials',
-      account: profile
+      type: 'encrypted-file',
+      id: `credentials:${profile}`
     }
-    this.values.set(`${reference.service}:${reference.account}`, JSON.stringify(credential))
+    this.values.set(`${reference.type}:${reference.id}`, JSON.stringify(credential))
     return reference
   }
 
   async readCredential(reference: CredentialReference): Promise<ShareNoteCredential> {
-    const value = this.values.get(`${reference.service}:${reference.account}`)
+    const value = this.values.get(`${reference.type}:${reference.id}`)
     if (!value) throw new Error('Credential not found')
     return JSON.parse(value) as ShareNoteCredential
   }
 
   async storeNoteKey(profile: string, recordId: string, key: string): Promise<string> {
-    const reference = `memory.note-keys:${profile}:${recordId}`
+    const reference = `encrypted-file:notes:${profile}:${recordId}`
     this.values.set(reference, key)
     return reference
   }

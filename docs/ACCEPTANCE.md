@@ -1,14 +1,14 @@
 # Acceptance report
 
-Date: 2026-09-01  
+Date: 2026-09-02
 Target package: Share Note for Codex 0.1.0  
 Protocol profile: `note-sx-client-1.5.5`
 
 ## Test environment and meaning
 
-The automated suite uses Node.js, frozen ciphertext fixtures, temporary user-data/workspace directories, an in-memory SecretStore, and an in-process mock that implements the audited Share Note wire behavior. The distributable client itself uses macOS Keychain.
+The automated suite uses Node.js, frozen ciphertext fixtures, temporary user-data/workspace directories, an in-memory SecretStore, the production encrypted-file SecretStore, and an in-process mock that implements the audited Share Note wire behavior. The distributable client uses the same scrypt + AES-256-GCM vault on Windows, Linux, and macOS and has no Keychain dependency.
 
-`npm run build` performs TypeScript checking, all tests, and the precompiled bundle build. The final suite contains 40 passing tests across unit, contract and clean-bundle acceptance layers. The plugin was also checked by the `plugin-creator` validator.
+`npm run build` performs TypeScript checking, all tests, and the precompiled bundle build. The final suite contains 49 passing tests across unit, contract and clean-bundle acceptance layers. The final cache-busted package and routing Skill passed the `plugin-creator` validators.
 
 “Mock passed” proves local client behavior against the recorded contract; it is not evidence about a public or self-hosted service instance.
 
@@ -32,7 +32,7 @@ The automated suite uses Node.js, frozen ciphertext fixtures, temporary user-dat
 | A14 | Mock passed | Bounded cache lag can verify later; unresolved visibility and lost responses remain unverified/unknown. |
 | A15 | Passed | Origin-isolation tests reject cross-origin redirect/fallback; no second request is sent. |
 | A16 | Passed | Markdown HTML is escaped, explicit/fetched HTML is sanitized, dangerous resources block, and a symlink escaping allowed roots is rejected. |
-| A17 | Passed | Persisted state is scanned for API key and note fragment key; neither is present. HTTP/page logs contain no bodies or authentication values. |
+| A17 | Passed | Production-vault tests round-trip credentials and note keys, verify no credential/key/master-password plaintext is persisted, check private POSIX modes, and reject wrong passwords and tampered ciphertext. Persisted state and logs are also scanned for secret values. |
 | A18 | Mock passed | Concurrent updates to one record produce at most one active create request and leave one valid state record. |
 | A19 | Policy/local behavior passed; real upgrade/uninstall not executed | Runtime data is outside the plugin tree; source, key references and audit record are preserved on delete. Actual Codex upgrade/uninstall remains unexecuted. |
 | A20 | Packaging passed; install/new-session unexecuted | Manifest, route Skill, bundle and marketplace validate; clean bundle has no runtime install. Actual marketplace add/plugin add/new-session trigger was not run. |
@@ -43,10 +43,11 @@ The automated suite uses Node.js, frozen ciphertext fixtures, temporary user-dat
 
 ```text
 npm run typecheck  -> passed
-npm test           -> 7 files, 40 tests passed
+npm test           -> 9 files, 49 tests passed
 npm run bundle     -> built plugins/share-note/skills/share-note/scripts/share-note.mjs
 plugin validator   -> passed
-temporary Keychain stdin add/update round-trip -> passed; validation items deleted
+encrypted vault round-trip/tamper/wrong-password tests -> passed
+Windows/Linux/macOS data-directory branch tests -> passed
 ```
 
 ## Explicitly not executed
@@ -56,3 +57,4 @@ temporary Keychain stdin add/update round-trip -> passed; validation items delet
 - CDN timing on a real deployment was not measured.
 - `codex plugin marketplace add`, plugin installation, new-session discovery, upgrade and uninstall were not run.
 - No release, external marketplace publication, or production readiness claim was made.
+- Native Windows and Linux Codex runs were not available in this environment; cross-platform compatibility was verified by standard-library-only implementation, platform-path branch tests, and clean Node bundle execution on macOS.

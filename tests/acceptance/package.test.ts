@@ -31,7 +31,8 @@ async function filesBelow(directory: string): Promise<string[]> {
 describe('M4 packaged plugin acceptance', () => {
   it('has a standard manifest with no undeclared MCP, app, or hook', async () => {
     const manifest = JSON.parse(await readFile(path.join(pluginRoot, '.codex-plugin', 'plugin.json'), 'utf8')) as Record<string, unknown>
-    expect(manifest).toMatchObject({ name: 'share-note', version: '0.1.0', skills: './skills/' })
+    expect(manifest).toMatchObject({ name: 'share-note', skills: './skills/' })
+    expect(manifest.version).toMatch(/^0\.1\.0(?:\+codex\.[a-z0-9-]+)?$/)
     expect(manifest).not.toHaveProperty('mcpServers')
     expect(manifest).not.toHaveProperty('apps')
     expect(manifest).not.toHaveProperty('hooks')
@@ -75,6 +76,37 @@ describe('M4 packaged plugin acceptance', () => {
     expect(await readdir(clean)).not.toContain('node_modules')
   })
 
+  it('uses the encrypted vault from the precompiled bundle', async () => {
+    const clean = await mkdtemp(path.join(tmpdir(), 'share-note-clean-vault-'))
+    temporaryDirectories.push(clean)
+    const requestPath = path.join(clean, 'setup.json')
+    const dataPath = path.join(clean, 'data')
+    await writeFile(requestPath, JSON.stringify({
+      profile: 'default',
+      apiBaseUrl: 'https://api.example.invalid',
+      webBaseUrl: 'https://share.example.invalid',
+      allowedSourceRoots: [clean],
+      credentialEnvVar: 'SHARE_NOTE_CREDENTIAL'
+    }))
+    const { stdout } = await execute(process.execPath, [bundle, 'setup', '--request', requestPath], {
+      cwd: clean,
+      env: {
+        ...process.env,
+        SHARE_NOTE_DATA_DIR: dataPath,
+        SHARE_NOTE_CREDENTIAL: JSON.stringify({ uid: 'bundle-user', apiKey: 'bundle-api-secret' }),
+        SHARE_NOTE_MASTER_PASSWORD: 'bundle-master-password'
+      }
+    })
+    expect(JSON.parse(stdout)).toMatchObject({ ok: true, action: 'setup', status: 'configured' })
+    const persistedFiles = await filesBelow(dataPath)
+    const persisted = (await Promise.all(persistedFiles.map(async (file) => readFile(file, 'utf8')))).join('\n')
+    expect(persisted).toContain('"algorithm": "aes-256-gcm"')
+    expect(persisted).toContain('"type": "encrypted-file"')
+    for (const secret of ['bundle-user', 'bundle-api-secret', 'bundle-master-password']) {
+      expect(persisted).not.toContain(secret)
+    }
+  })
+
   it('contains no Obsidian integration or resident-service implementation', async () => {
     const sourceFiles = (await filesBelow(path.join(root, 'src'))).filter((file) => file.endsWith('.ts'))
     const source = (await Promise.all(sourceFiles.map(async (file) => readFile(file, 'utf8')))).join('\n')
@@ -85,6 +117,8 @@ describe('M4 packaged plugin acceptance', () => {
       expect(implementation).not.toContain('.obsidian')
       expect(implementation).not.toMatch(/createServer\s*\(/)
       expect(implementation).not.toContain('mcpServers')
+      expect(implementation).not.toContain('/usr/bin/security')
+      expect(implementation).not.toContain('MacOsKeychainSecretStore')
     }
   })
 })

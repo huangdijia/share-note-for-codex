@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { ProfileConfig } from './config.js'
+import { credentialIdentityReference, type ProfileConfig } from './config.js'
 import { encryptModern } from './crypto/codecs.js'
 import { ShareNoteError } from './errors.js'
 import { ShareNoteHttpClient, type FetchImplementation } from './http/client.js'
@@ -52,7 +52,7 @@ export interface ListRequest {
 }
 
 function identityReference(profile: ProfileConfig): string {
-  return `${profile.credentialRef.service}:${profile.credentialRef.account}`
+  return credentialIdentityReference(profile.credentialRef)
 }
 
 function assertRecordBinding(record: ShareRecord, profile: ProfileConfig): void {
