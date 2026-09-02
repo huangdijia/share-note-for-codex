@@ -6,6 +6,7 @@ import { ShareNoteError } from './errors.js'
 export interface SafeSource {
   requestedPath: string
   realPath: string
+  projectRelativePath: string
   content: string
   sourceHash: string
   bytes: number
@@ -19,14 +20,21 @@ function inside(root: string, target: string): boolean {
 
 export async function readSafeSource(
   sourcePath: string,
-  workspaceRoot: string,
+  projectRoot: string,
   allowedSourceRoots: string[],
   maximumBytes: number
 ): Promise<SafeSource> {
-  const requestedPath = path.resolve(workspaceRoot, sourcePath)
+  const resolvedProjectRoot = await realpath(projectRoot).catch(() => undefined)
+  if (!resolvedProjectRoot || !(await stat(resolvedProjectRoot)).isDirectory()) {
+    throw new ShareNoteError('source_blocked', 'Configured project root does not exist or is not a directory')
+  }
+  const requestedPath = path.resolve(resolvedProjectRoot, sourcePath)
   const requestedInfo = await lstat(requestedPath).catch(() => undefined)
   if (!requestedInfo) throw new ShareNoteError('source_blocked', 'Source file does not exist')
   const resolved = await realpath(requestedPath)
+  if (!inside(resolvedProjectRoot, resolved) || resolved === resolvedProjectRoot) {
+    throw new ShareNoteError('source_blocked', 'Source resolves outside the configured project root')
+  }
   const roots = await Promise.all(allowedSourceRoots.map(async (root) => realpath(root)))
   if (!roots.some((root) => inside(root, resolved))) {
     throw new ShareNoteError('source_blocked', 'Source resolves outside the configured allowed roots')
@@ -44,6 +52,7 @@ export async function readSafeSource(
   return {
     requestedPath,
     realPath: resolved,
+    projectRelativePath: path.relative(resolvedProjectRoot, resolved).split(path.sep).join('/'),
     content,
     sourceHash: createHash('sha256').update(buffer).digest('hex'),
     bytes: buffer.byteLength,
