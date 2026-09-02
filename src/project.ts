@@ -19,6 +19,22 @@ import { withLocalLock } from './state/lock.js'
 const RECORD_ID_PATTERN = /^note-[0-9a-f-]{36}$/
 const OPERATION_ID_PATTERN = /^op-[0-9a-f-]{36}$/
 const NOTE_KEY_REFERENCE_PATTERN = /^project-file:notes:note-[0-9a-f-]{36}$/
+const RECORD_STATUSES = new Set([
+  'verified',
+  'submitted_unverified',
+  'unknown',
+  'failed',
+  'blocked',
+  'already_absent'
+])
+const OPERATION_STATUSES = new Set([...RECORD_STATUSES, 'pending'])
+
+function assertOnlyKeys(value: object, allowed: string[], description: string): void {
+  const allowedKeys = new Set(allowed)
+  if (Object.keys(value).some((key) => !allowedKeys.has(key))) {
+    throw new ShareNoteError('configuration_missing', `${description} contains unsupported fields`)
+  }
+}
 
 export interface ProjectManifest {
   schemaVersion: 1
@@ -44,6 +60,19 @@ function inside(root: string, target: string): boolean {
   return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative))
 }
 
+async function canonicalPathIncludingMissing(value: string): Promise<string> {
+  let cursor = path.resolve(value)
+  const suffix: string[] = []
+  while (true) {
+    const resolved = await realpath(cursor).catch(() => undefined)
+    if (resolved) return path.join(resolved, ...suffix.reverse())
+    const parent = path.dirname(cursor)
+    if (parent === cursor) return path.resolve(value)
+    suffix.push(path.basename(cursor))
+    cursor = parent
+  }
+}
+
 function assertSafeRelativePath(value: unknown): string {
   if (typeof value !== 'string' || !value || value.includes('\\') || path.posix.isAbsolute(value)) {
     throw new ShareNoteError('configuration_missing', 'Project record source path is invalid')
@@ -60,6 +89,26 @@ function assertRecord(value: unknown, profile: string): ShareRecord {
     throw new ShareNoteError('configuration_missing', 'Project record is invalid')
   }
   const record = value as Partial<ShareRecord>
+  assertOnlyKeys(record, [
+    'schemaVersion',
+    'recordId',
+    'profile',
+    'apiOrigin',
+    'webOrigin',
+    'identityRef',
+    'sourcePath',
+    'remoteFilename',
+    'shareUrl',
+    'noteKeyRef',
+    'sourceHash',
+    'contentHash',
+    'title',
+    'encrypted',
+    'status',
+    'createdAt',
+    'updatedAt',
+    'deletedAt'
+  ], 'Project record')
   if (
     record.schemaVersion !== 1 ||
     typeof record.recordId !== 'string' ||
@@ -77,6 +126,7 @@ function assertRecord(value: unknown, profile: string): ShareRecord {
     typeof record.title !== 'string' ||
     record.encrypted !== true ||
     typeof record.status !== 'string' ||
+    !RECORD_STATUSES.has(record.status) ||
     typeof record.createdAt !== 'string' ||
     typeof record.updatedAt !== 'string'
   ) {
@@ -84,12 +134,24 @@ function assertRecord(value: unknown, profile: string): ShareRecord {
   }
   assertSafeRelativePath(record.sourcePath)
   let shareUrl: URL
+  let apiOrigin: URL
+  let webOrigin: URL
   try {
     shareUrl = new URL(record.shareUrl)
+    apiOrigin = new URL(record.apiOrigin)
+    webOrigin = new URL(record.webOrigin)
   } catch {
-    throw new ShareNoteError('configuration_missing', 'Project record share URL is invalid')
+    throw new ShareNoteError('configuration_missing', 'Project record service URL is invalid')
   }
-  if (shareUrl.hash || shareUrl.username || shareUrl.password) {
+  if (
+    shareUrl.hash ||
+    shareUrl.search ||
+    shareUrl.username ||
+    shareUrl.password ||
+    shareUrl.origin !== record.webOrigin ||
+    apiOrigin.origin !== record.apiOrigin ||
+    webOrigin.origin !== record.webOrigin
+  ) {
     throw new ShareNoteError('configuration_missing', 'Project record cannot contain a credential or URL fragment')
   }
   return record as ShareRecord
@@ -100,6 +162,21 @@ function assertOperation(value: unknown, profile: string): OperationRecord {
     throw new ShareNoteError('configuration_missing', 'Project operation is invalid')
   }
   const operation = value as Partial<OperationRecord>
+  assertOnlyKeys(operation, [
+    'schemaVersion',
+    'operationId',
+    'action',
+    'recordId',
+    'profile',
+    'target',
+    'status',
+    'contentHash',
+    'noteKeyRef',
+    'remoteUrl',
+    'diagnostic',
+    'createdAt',
+    'updatedAt'
+  ], 'Project operation')
   if (
     operation.schemaVersion !== 1 ||
     typeof operation.operationId !== 'string' ||
@@ -110,6 +187,7 @@ function assertOperation(value: unknown, profile: string): OperationRecord {
     operation.profile !== profile ||
     typeof operation.target !== 'string' ||
     typeof operation.status !== 'string' ||
+    !OPERATION_STATUSES.has(operation.status) ||
     typeof operation.createdAt !== 'string' ||
     typeof operation.updatedAt !== 'string'
   ) {
@@ -126,6 +204,7 @@ function assertManifest(value: unknown): ProjectManifest {
     throw new ShareNoteError('configuration_missing', 'Project Share Note configuration is invalid')
   }
   const manifest = value as Partial<ProjectManifest>
+  assertOnlyKeys(manifest, ['schemaVersion', 'profile', 'records', 'operations'], 'Project Share Note configuration')
   if (manifest.schemaVersion !== 1 || typeof manifest.profile !== 'string') {
     throw new ShareNoteError('configuration_missing', 'Project Share Note configuration schema is unsupported')
   }
@@ -149,6 +228,7 @@ function assertKeyFile(value: unknown): ProjectKeyFile {
     throw new ShareNoteError('credential_missing', 'Project note key file is invalid')
   }
   const file = value as Partial<ProjectKeyFile>
+  assertOnlyKeys(file, ['schemaVersion', 'keys'], 'Project note key file')
   if (file.schemaVersion !== 1 || !file.keys || typeof file.keys !== 'object' || Array.isArray(file.keys)) {
     throw new ShareNoteError('credential_missing', 'Project note key file schema is invalid')
   }
@@ -205,7 +285,7 @@ export function projectNoteKeyReference(recordId: string): string {
 }
 
 export async function projectRelativePath(projectRoot: string, target: string): Promise<string> {
-  const resolvedTarget = await realpath(target).catch(() => path.resolve(target))
+  const resolvedTarget = await canonicalPathIncludingMissing(target)
   const relative = path.relative(projectRoot, resolvedTarget)
   if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
     throw new ShareNoteError('source_blocked', 'Source resolves outside the configured project root')
@@ -420,6 +500,22 @@ export class ProjectStore {
     }
     for (const record of records) await this.storeNoteKey(record.recordId, keys.get(record.recordId)!)
     await this.mutateManifest((current) => {
+      for (const record of records) {
+        assertRecord({ ...record, noteKeyRef: projectNoteKeyReference(record.recordId) }, current.profile)
+        if (current.records.some((item) => item.recordId === record.recordId)) {
+          throw new ShareNoteError('conflict', `Project already contains legacy record ${record.recordId}`)
+        }
+      }
+      for (const operation of operations) {
+        const projectOperation = {
+          ...operation,
+          ...(operation.noteKeyRef ? { noteKeyRef: projectNoteKeyReference(operation.recordId) } : {})
+        }
+        assertOperation(projectOperation, current.profile)
+        if (current.operations.some((item) => item.operationId === operation.operationId)) {
+          throw new ShareNoteError('conflict', `Project already contains legacy operation ${operation.operationId}`)
+        }
+      }
       current.records.push(...records.map((record) => ({
         ...record,
         noteKeyRef: projectNoteKeyReference(record.recordId)
@@ -433,6 +529,6 @@ export class ProjectStore {
 }
 
 export async function sourceBelongsToProject(projectRoot: string, sourcePath: string): Promise<boolean> {
-  const resolvedSource = await realpath(sourcePath).catch(() => path.resolve(sourcePath))
+  const resolvedSource = await canonicalPathIncludingMissing(sourcePath)
   return inside(projectRoot, resolvedSource) && resolvedSource !== projectRoot
 }

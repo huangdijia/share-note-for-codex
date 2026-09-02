@@ -4,7 +4,6 @@ import { ShareNoteHttpClient } from './http/client.js'
 import {
   buildProfileConfig,
   ConfigStore,
-  type ProfileConfig,
   type ProfileSetupInput
 } from './config.js'
 import { ShareNoteError } from './errors.js'
@@ -158,22 +157,28 @@ export class ShareNoteApplication {
     const project = await ProjectStore.open(request.projectRoot, this.dataDirectory)
     await project.configure(profile.name)
 
-    const legacyState = new StateStore(this.dataDirectory)
-    const allLegacyRecords = await legacyState.listRecords(profile.name)
-    const legacyMembership = await Promise.all(allLegacyRecords.map(async (record) => ({
-      record,
-      belongs: await sourceBelongsToProject(project.projectRoot, record.sourcePath)
-    })))
-    const matchingRecords = legacyMembership.filter((item) => item.belongs).map((item) => item.record)
-    const allLegacyOperations = (await legacyState.listOperations()).filter((operation) => operation.profile === profile.name)
-    const knownLegacyRecordIds = new Set(allLegacyRecords.map((record) => record.recordId))
-    const unassociatedLegacyOperations = allLegacyOperations.filter(
-      (operation) => !knownLegacyRecordIds.has(operation.recordId)
-    ).length
+    let matchingRecords: Awaited<ReturnType<StateStore['listRecords']>> = []
+    let allLegacyOperations: Awaited<ReturnType<StateStore['listOperations']>> = []
+    let unassociatedLegacyOperations = 0
     let importedRecords = 0
     let importedOperations = 0
 
-    if (request.importLegacyRecords === true && matchingRecords.length > 0) {
+    if (request.importLegacyRecords === true) {
+      const legacyState = new StateStore(this.dataDirectory)
+      const allLegacyRecords = await legacyState.listRecords(profile.name)
+      const legacyMembership = await Promise.all(allLegacyRecords.map(async (record) => ({
+        record,
+        belongs: await sourceBelongsToProject(project.projectRoot, record.sourcePath)
+      })))
+      matchingRecords = legacyMembership.filter((item) => item.belongs).map((item) => item.record)
+      allLegacyOperations = (await legacyState.listOperations()).filter((operation) => operation.profile === profile.name)
+      const knownLegacyRecordIds = new Set(allLegacyRecords.map((record) => record.recordId))
+      unassociatedLegacyOperations = allLegacyOperations.filter(
+        (operation) => !knownLegacyRecordIds.has(operation.recordId)
+      ).length
+    }
+
+    if (matchingRecords.length > 0) {
       const matchingRecordIds = new Set(matchingRecords.map((record) => record.recordId))
       const matchingOperations = allLegacyOperations.filter((operation) => matchingRecordIds.has(operation.recordId))
       const keys = new Map<string, string>()

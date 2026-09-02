@@ -1,6 +1,5 @@
 {
-  "profile": "default",
   "sourcePath": "docs/report.md",
-  "workspaceRoot": "/absolute/path/to/project",
+  "projectRoot": "/absolute/path/to/project",
   "format": "markdown"
 }

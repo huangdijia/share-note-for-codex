@@ -55,6 +55,24 @@ describe('project-scoped Share Note configuration', () => {
     expect((await stat(manifestPath)).isFile()).toBe(true)
   })
 
+  it('fails closed for an unknown profile or a malformed project manifest', async () => {
+    await expect(application.configureProject({ projectRoot: project, profile: 'missing' }))
+      .rejects.toMatchObject({ code: 'configuration_missing' })
+    await mkdir(path.join(project, '.openai'))
+    await writeFile(path.join(project, '.openai', 'share-note.json'), '{not-json')
+    await expect(application.list({ projectRoot: project }))
+      .rejects.toMatchObject({ code: 'configuration_missing' })
+    await writeFile(path.join(project, '.openai', 'share-note.json'), JSON.stringify({
+      schemaVersion: 1,
+      profile: 'first',
+      records: [],
+      operations: [],
+      apiKey: 'must-not-be-accepted'
+    }))
+    await expect(application.list({ projectRoot: project }))
+      .rejects.toMatchObject({ code: 'configuration_missing' })
+  })
+
   it('allows changing an empty binding but blocks it after project state exists', async () => {
     await application.configureProject({ projectRoot: project, profile: 'first' })
     await application.configureProject({ projectRoot: project, profile: 'second' })
@@ -92,6 +110,26 @@ describe('project-scoped Share Note configuration', () => {
       sourcePath: 'child/note.md',
       workspaceRoot: project
     } as never)).rejects.toMatchObject({ code: 'invalid_request' })
+  })
+
+  it('invalidates publish authorization when the project binding changes after preview', async () => {
+    await writeFile(path.join(project, 'note.md'), '# binding')
+    await application.configureProject({ projectRoot: project, profile: 'first' })
+    const preview = await application.preview({ projectRoot: project, sourcePath: 'note.md' })
+    await application.configureProject({ projectRoot: project, profile: 'second' })
+    await expect(application.publish({
+      projectRoot: project,
+      previewId: preview.previewId,
+      expectedContentHash: preview.contentHash,
+      authorization: {
+        granted: true,
+        action: 'publish',
+        profile: 'first',
+        projectBindingHash: preview.projectBindingHash,
+        contentHash: preview.contentHash,
+        encryption: 'encrypted'
+      }
+    })).rejects.toMatchObject({ code: 'content_blocked' })
   })
 
   it('enforces both project containment and the global allowed source roots', async () => {
@@ -203,5 +241,71 @@ describe('project-scoped Share Note configuration', () => {
     })
     await expect(store.readNoteKey(projectNoteKeyReference(recordId))).resolves.toBe('legacy-fragment-key')
     await expect(legacy.getRecord(recordId)).resolves.toMatchObject({ sourcePath })
+    await expect(application.configureProject({
+      projectRoot: project,
+      profile: 'first',
+      importLegacyRecords: true
+    })).rejects.toMatchObject({ code: 'conflict' })
+    await expect(store.listRecords()).resolves.toHaveLength(1)
+  })
+
+  it('reports legacy operations that cannot be associated with a project record', async () => {
+    const now = new Date().toISOString()
+    await new StateStore(dataDirectory).writeOperation({
+      schemaVersion: 1,
+      operationId: 'op-00000000-0000-4000-8000-000000000005',
+      action: 'publish',
+      recordId: 'note-00000000-0000-4000-8000-000000000005',
+      profile: 'first',
+      target: 'https://share.first.example',
+      status: 'unknown',
+      createdAt: now,
+      updatedAt: now
+    })
+    const result = await application.configureProject({
+      projectRoot: project,
+      profile: 'first',
+      importLegacyRecords: true
+    })
+    expect(result).toMatchObject({
+      importedRecords: 0,
+      importedOperations: 0,
+      unassociatedLegacyOperations: 1
+    })
+    expect(result.warnings.join(' ')).toContain('could not be associated')
+  })
+
+  it('does not partially import a legacy record whose note key is missing', async () => {
+    const recordId = 'note-00000000-0000-4000-8000-000000000004'
+    const sourcePath = path.join(project, 'missing-key.md')
+    await writeFile(sourcePath, '# missing key')
+    const now = new Date().toISOString()
+    await new StateStore(dataDirectory).saveRecord({
+      schemaVersion: 1,
+      recordId,
+      profile: 'first',
+      apiOrigin: 'https://api.first.example',
+      webOrigin: 'https://share.first.example',
+      identityRef: 'plaintext-file:credentials:first',
+      sourcePath,
+      remoteFilename: 'missingkey123',
+      shareUrl: 'https://share.first.example/missingkey123',
+      noteKeyRef: `plaintext-file:notes:first:${recordId}`,
+      sourceHash: 'a'.repeat(64),
+      contentHash: 'b'.repeat(64),
+      title: 'Missing key',
+      encrypted: true,
+      status: 'verified',
+      createdAt: now,
+      updatedAt: now
+    })
+    await expect(application.configureProject({
+      projectRoot: project,
+      profile: 'first',
+      importLegacyRecords: true
+    })).rejects.toThrow('Note key not found')
+    const store = await ProjectStore.open(project, dataDirectory)
+    await expect(store.listRecords()).resolves.toEqual([])
+    await expect(stat(store.keysPath)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

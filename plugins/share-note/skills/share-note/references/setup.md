@@ -1,6 +1,6 @@
 # Setup and doctor
 
-The client requires Node.js 20 or newer and supports Windows, Linux, and macOS. Configuration, state, API credentials, and note keys live in the platform user-data directory, never the plugin or project directory. Credentials and note keys are intentionally stored as plaintext in private files; the client does not use a master password, Keychain, or another OS credential manager.
+The client requires Node.js 20 or newer and supports Windows, Linux, and macOS. Trusted profiles, API credentials, previews, locks, and pending browser setup live in the platform user-data directory, never the plugin directory. Project profile bindings, records, and operations live in `.openai/share-note.json`; plaintext per-note keys live in the ignored `.openai/share-note.keys.json`. The client does not use a master password, Keychain, or another OS credential manager.
 
 ## Browser-assisted setup (recommended)
 
@@ -65,3 +65,7 @@ Schema-v1 Keychain and schema-v2 encrypted-vault profiles are intentionally reje
 ## Doctor
 
 Doctor sends `POST /v1/file/check-files` with an empty file list. It checks configuration, network reachability and authentication without creating a note, rotating a key, or uploading an asset. An authentication error means setup must be repaired; do not call `get-key` automatically.
+
+## Project configuration
+
+After setup, call `configure-project` with an absolute `projectRoot` and an existing `profile`. It creates `.openai/share-note.json` and ensures `.openai/.gitignore` contains `share-note.keys.json`. The project manifest may select a trusted profile but cannot define origins, credential references, or allowed source roots. Use `importLegacyRecords: true` only when the user asks to copy matching legacy records and keys into this project; the originals remain untouched.

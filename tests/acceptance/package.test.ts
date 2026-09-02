@@ -1,4 +1,4 @@
-import { copyFile, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { tmpdir } from 'node:os'
@@ -64,15 +64,41 @@ describe('M4 packaged plugin acceptance', () => {
     const clean = await mkdtemp(path.join(tmpdir(), 'share-note-clean-bundle-'))
     temporaryDirectories.push(clean)
     const cleanBundle = path.join(clean, 'share-note.mjs')
+    const projectPath = path.join(clean, 'project')
+    const setupPath = path.join(clean, 'setup.json')
+    const configurePath = path.join(clean, 'configure.json')
     const requestPath = path.join(clean, 'list.json')
     const dataPath = path.join(clean, 'data')
     await copyFile(bundle, cleanBundle)
-    await writeFile(requestPath, '{}\n')
+    await mkdir(projectPath)
+    await writeFile(setupPath, JSON.stringify({
+      profile: 'clean',
+      apiBaseUrl: 'https://api.example.invalid',
+      webBaseUrl: 'https://share.example.invalid',
+      allowedSourceRoots: [projectPath],
+      credentialEnvVar: 'CLEAN_CREDENTIAL'
+    }))
+    await execute(process.execPath, [cleanBundle, 'setup', '--request', setupPath], {
+      cwd: clean,
+      env: {
+        ...process.env,
+        SHARE_NOTE_DATA_DIR: dataPath,
+        CLEAN_CREDENTIAL: JSON.stringify({ uid: 'clean-user', apiKey: 'clean-key' })
+      }
+    })
+    await writeFile(configurePath, JSON.stringify({ projectRoot: projectPath, profile: 'clean' }))
+    await execute(process.execPath, [cleanBundle, 'configure-project', '--request', configurePath], {
+      cwd: clean,
+      env: { ...process.env, SHARE_NOTE_DATA_DIR: dataPath }
+    })
+    await writeFile(requestPath, JSON.stringify({ projectRoot: projectPath }))
     const { stdout } = await execute(process.execPath, [cleanBundle, 'list', '--request', requestPath], {
       cwd: clean,
       env: { ...process.env, SHARE_NOTE_DATA_DIR: dataPath }
     })
-    expect(JSON.parse(stdout)).toMatchObject({ ok: true, action: 'list', scope: 'local', records: [] })
+    expect(JSON.parse(stdout)).toMatchObject({ ok: true, action: 'list', scope: 'project', records: [] })
+    expect(JSON.parse(await readFile(path.join(projectPath, '.openai', 'share-note.json'), 'utf8')))
+      .toMatchObject({ schemaVersion: 1, profile: 'clean', records: [], operations: [] })
     expect(await readdir(clean)).not.toContain('node_modules')
   })
 
@@ -122,6 +148,19 @@ describe('M4 packaged plugin acceptance', () => {
     }
     expect(bundled).not.toContain('obsidian://')
     expect(bundled).not.toMatch(/clipboard\.read/i)
+  })
+
+  it('ships project-scoped configuration and key storage', async () => {
+    const bundled = await readFile(bundle, 'utf8')
+    for (const requiredImplementation of [
+      'configure-project',
+      'share-note.json',
+      'share-note.keys.json',
+      'projectBindingHash',
+      'scope: "project"'
+    ]) {
+      expect(bundled).toContain(requiredImplementation)
+    }
   })
 
   it('contains no Obsidian integration or resident-service implementation', async () => {

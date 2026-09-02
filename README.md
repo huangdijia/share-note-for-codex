@@ -2,7 +2,7 @@
 
 Share Note for Codex is a local Codex plugin that previews, publishes, reads, updates, lists, and deletes Share Note pages through a bundled HTTP client. It does not install or call Obsidian, use Obsidian CLI/URI/vault state, start a resident service, or install dependencies at runtime.
 
-Version 0.1.0 targets Node.js 20+ on Windows, Linux, and macOS. API credentials and note keys are stored as plaintext JSON in the user-data directory with private file permissions; the client does not use a master password, macOS Keychain, or another platform credential manager. The client writes only user-level state and treats the plugin installation as read-only.
+Version 0.1.0 targets Node.js 20+ on Windows, Linux, and macOS. API credentials are stored as plaintext JSON in the user-data directory. Each project's profile binding, publication records, and operation state live in `.openai/share-note.json`; its note fragment keys live in the ignored, private `.openai/share-note.keys.json`. The client does not use a master password, macOS Keychain, or another platform credential manager, and treats the plugin installation as read-only.
 
 ## What is delivered
 
@@ -86,6 +86,25 @@ The existing `setup` action remains available to import a credential already obt
 
 Then run doctor with a small JSON request containing only the profile. Doctor sends an authenticated empty `check-files` request and never creates a note.
 
+## Configure a project
+
+After the user-level profile exists, bind it to the exact project root before any document action:
+
+```json
+{
+  "projectRoot": "/absolute/path/to/project",
+  "profile": "public"
+}
+```
+
+```bash
+node /absolute/path/to/share-note.mjs configure-project --request /absolute/path/to/configure-project.json
+```
+
+This creates the commit-safe `.openai/share-note.json` manifest and ensures `.openai/.gitignore` excludes `share-note.keys.json`. The manifest may select only an existing user-level profile; it cannot add service origins, credential sources, or allowed source roots. An empty project can be rebound to another profile, but a binding with any publication record or operation is immutable.
+
+To copy matching records from the legacy user-level registry without deleting the originals, set `"importLegacyRecords": true`. Only records with the same profile and a source inside this project are imported. Missing keys or ID conflicts fail the import before any remote request.
+
 ## Actions
 
 Every invocation has this shape:
@@ -94,13 +113,15 @@ Every invocation has this shape:
 node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/request.json
 ```
 
-Supported actions are `setup`, `setup-browser-start`, `setup-browser-complete`, `doctor`, `preview`, `publish`, `read`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, service origins, and explicit write authorization—not secrets, browser-returned keys, or note bodies.
+Supported actions are `setup`, `setup-browser-start`, `setup-browser-complete`, `doctor`, `configure-project`, `preview`, `publish`, `read`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, service origins, and explicit write authorization—not secrets, browser-returned keys, or note bodies.
 
-No master-password environment variable is required. Actions that need an API credential or note key read it directly from the private plaintext files in the user-data directory.
+No master-password environment variable is required. Setup and doctor remain profile-scoped. Every document action (`preview`, `publish`, `read`, `update`, `list`, and `delete`) requires an absolute `projectRoot`; the profile is loaded from that project's manifest. These actions reject the legacy top-level `profile` and `workspaceRoot` fields, and source paths must be relative to `projectRoot`.
 
-Publishing and updating always require a fresh preview and exact hash-bound authorization. Encrypted publication is the only write mode. The client persists a note key reference and pending operation before the first create request, never blindly retries ambiguous writes, and reports one of `verified`, `submitted_unverified`, `unknown`, `failed`, `blocked`, or `already_absent`.
+Preview returns the resolved profile, API/Web origins, and `projectBindingHash`. Publish and update authorization must echo that profile and binding hash together with the exact content hash. This invalidates authorization if the project target changes after preview.
 
-`list` is explicitly local-only. Delete keeps the local source and audit record. Images and other user attachments block publication because Share Note body encryption does not cover them.
+Publishing and updating always require a fresh preview and exact hash-bound authorization. Encrypted publication is the only write mode. The client stores the project note key and pending operation before the first create request, never blindly retries ambiguous writes, and reports one of `verified`, `submitted_unverified`, `unknown`, `failed`, `blocked`, or `already_absent`.
+
+`list` has `scope: "project"` and never claims to enumerate the remote account. Delete keeps the local source, project audit record, and project key. Images and other user attachments block publication because Share Note body encryption does not cover them.
 
 ## Runtime data
 
@@ -110,9 +131,11 @@ The default user-data directory is:
 - Linux: `$XDG_DATA_HOME/codex-share-note/`, or `~/.local/share/codex-share-note/`
 - macOS: `~/Library/Application Support/codex-share-note/`
 
-Profiles, previews, operations, locks, records, short-lived pending browser setups, and plaintext credential/note-key files live there. Files and directories are created atomically with `0600` and `0700` permissions on POSIX systems; Windows relies on the current user's data-directory ACL because POSIX modes are not available there. `SHARE_NOTE_DATA_DIR` changes the whole user-data location for isolated tests and controlled environments.
+Profiles, previews, locks, legacy records, short-lived pending browser setups, and plaintext API credential files live there. Files and directories are created atomically with `0600` and `0700` permissions on POSIX systems; Windows relies on the current user's data-directory ACL because POSIX modes are not available there. `SHARE_NOTE_DATA_DIR` changes the whole user-data location for isolated tests and controlled environments.
 
-This design provides no encryption at rest: any process or user that can read the data directory can recover the API credential and stored note keys. Existing schema-v1 Keychain and schema-v2 encrypted-vault profiles are not imported or read; rerun setup to create a schema-v3 plaintext-file profile. Old external Keychain entries and encrypted files are left untouched.
+Project records and operations are atomically written to `.openai/share-note.json` using project-relative source paths and fragment-free URLs. Per-note keys are plaintext in `.openai/share-note.keys.json`, created as `0600` on POSIX and ignored by the adjacent `.openai/.gitignore`. Git ignore does not protect a key file that was already tracked, and anyone who can read or copy this file can decrypt its shares. Windows relies on the checkout's current-user ACL.
+
+This design provides no encryption at rest: any process or user that can read the user data directory can recover the API credential, and any process or user that can read the project key file can recover its note keys. Existing schema-v1 Keychain and schema-v2 encrypted-vault profiles are not imported or read; rerun setup to create a schema-v3 plaintext-file profile. Old external Keychain entries, encrypted files, and legacy global records are left untouched.
 
 ## Protocol and test status
 

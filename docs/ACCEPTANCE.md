@@ -6,13 +6,13 @@ Protocol profile: `note-sx-client-1.5.5`
 
 ## Test environment and meaning
 
-The automated suite uses Node.js, frozen page-ciphertext fixtures, temporary user-data/workspace directories, an in-memory SecretStore, the production plaintext-file SecretStore, and an in-process mock that implements the audited Share Note wire behavior. The distributable client stores API credentials and note keys as plaintext private files on Windows, Linux, and macOS and has no master-password or Keychain dependency.
+The automated suite uses Node.js, frozen page-ciphertext fixtures, temporary user-data/project directories, an in-memory SecretStore, the production plaintext-file credential store, project manifest/key stores, and an in-process mock that implements the audited Share Note wire behavior. The distributable client keeps plaintext API credentials in private user data and plaintext note keys in ignored project key files; it has no master-password or Keychain dependency.
 
-`npm run build` performs TypeScript checking, all tests, and the precompiled bundle build. The current local suite contains 61 passing tests across unit, contract and clean-bundle acceptance layers, including browser setup and shipped-bundle checks. The routing Skill and bundle were rebuilt from this source.
+`npm run build` performs TypeScript checking, all tests, and the precompiled bundle build. The current local suite contains 73 passing tests across 12 unit, contract and clean-bundle acceptance files, including browser setup, project isolation/migration, and shipped-bundle checks. The routing Skill and bundle were rebuilt from this source.
 
 “Mock passed” proves local client behavior against the recorded contract; it is not evidence about a public or self-hosted service instance.
 
-## A01–A23
+## A01–A24
 
 | ID | Result | Evidence and limits |
 |---|---|---|
@@ -32,21 +32,22 @@ The automated suite uses Node.js, frozen page-ciphertext fixtures, temporary use
 | A14 | Mock passed | Bounded cache lag can verify later; unresolved visibility and lost responses remain unverified/unknown. |
 | A15 | Passed | Origin-isolation tests reject cross-origin redirect/fallback; no second request is sent. |
 | A16 | Passed | Markdown HTML is escaped, explicit/fetched HTML is sanitized, dangerous resources block, and a symlink escaping allowed roots is rejected. |
-| A17 | Passed | Production-store tests round-trip credentials and note keys, verify that plaintext is intentionally persisted only in the secret files, check private POSIX modes, reject malformed files, and keep credentials out of ordinary results. |
-| A18 | Mock passed | Concurrent updates to one record produce at most one active create request and leave one valid state record. |
-| A19 | Policy/local behavior passed; real upgrade/uninstall not executed | Runtime data is outside the plugin tree; source, key references and audit record are preserved on delete. Actual Codex upgrade/uninstall remains unexecuted. |
+| A17 | Passed | Production-store tests keep API credentials in private user data and note fragment keys only in the ignored project key file, verify POSIX `0600`, reject malformed/symbolic files, and keep both secrets out of the tracked manifest and ordinary results. |
+| A18 | Mock passed | Concurrent updates to one project record produce at most one active create request and leave one valid project manifest record. |
+| A19 | Policy/local behavior passed; real upgrade/uninstall not executed | Runtime data is outside the plugin tree; project-relative source, key references and audit record are preserved on delete. Actual Codex upgrade/uninstall remains unexecuted. |
 | A20 | Packaging passed; install/new-session unexecuted | Manifest, route Skill, bundle and marketplace validate; clean bundle has no runtime install. Actual marketplace add/plugin add/new-session trigger was not run. |
-| A21 | Passed | Output has `scope: local`, hides key references and warns that results are not a complete remote inventory. |
+| A21 | Passed | Output has `scope: project`, hides key references and warns that results are not a complete remote inventory. |
 | A22 | Passed by client/Skill boundary | Fetched scripts are removed; no content execution path exists; Skill says remote instructions are untrusted data and must not be followed. |
 | A23 | Local browser-setup coverage passed; live acceptance pending | Unit and contract coverage exercises direct macOS/Windows/Linux browser command arguments, URL construction, frozen public origins, independently confirmed self-hosted origins, pending expiry/cancellation/duplicate completion, bad keys, no fallback, hidden-input non-echo behavior, plaintext secret-file permissions, result redaction, and the shipped bundle. The test uses a fake launcher and in-process mock; it does not claim live target compatibility. |
+| A24 | Passed | `configure-project` creates the exact `.openai/share-note.json` binding, ignores the private key file, rejects missing/malformed/symbolic configuration, enforces project plus global-root containment, invalidates stale project authorization, isolates projects sharing a profile, and copies matching legacy records without deleting the originals. |
 
 ## Commands and outcomes
 
 ```text
 npm run typecheck  -> passed
-npm test           -> 11 files, 62 tests passed
+npm test           -> 12 files, 73 tests passed
 npm run bundle     -> built plugins/share-note/skills/share-note/scripts/share-note.mjs
-plugin validator   -> passed in the earlier package baseline; not rerun for this browser-setup change
+packaged plugin and clean-bundle acceptance -> passed
 plaintext secret-store round-trip/permissions/malformed-file tests -> passed
 Windows/Linux/macOS data-directory branch tests -> passed
 browser setup unit/contract/leakage/bundle tests -> passed

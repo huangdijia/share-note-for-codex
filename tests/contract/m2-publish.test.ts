@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ShareNoteApplication } from '../../src/app.js'
-import { MemorySecretStore } from '../../src/secrets/store.js'
+import { PlaintextFileSecretStore } from '../../src/secrets/plaintext-file.js'
 import { MockShareNoteServer } from '../helpers/mock-share-note-server.js'
 
 describe('M2 encrypted publish and verification', () => {
@@ -22,7 +22,7 @@ describe('M2 encrypted publish and verification', () => {
     await writeFile(sourcePath, '# M2 secret 🚀\n\nOnly encrypted content may leave the client.')
     application = new ShareNoteApplication(
       dataDirectory,
-      new MemorySecretStore(),
+      new PlaintextFileSecretStore(dataDirectory),
       fetch,
       { MOCK_CREDENTIAL: JSON.stringify({ uid: server.uid, apiKey: server.apiKey }) }
     )
@@ -101,9 +101,20 @@ describe('M2 encrypted publish and verification', () => {
     const keyFile = path.join(workspace, '.openai', 'share-note.keys.json')
     const keys = await readFile(keyFile, 'utf8')
     const ignore = await readFile(path.join(workspace, '.openai', '.gitignore'), 'utf8')
+    const userDataContents: string[] = []
+    async function collect(directory: string): Promise<void> {
+      for (const entry of await readdir(directory)) {
+        const candidate = path.join(directory, entry)
+        if ((await stat(candidate)).isDirectory()) await collect(candidate)
+        else userDataContents.push(await readFile(candidate, 'utf8'))
+      }
+    }
+    await collect(dataDirectory)
     expect(manifest).not.toContain(server.apiKey)
     expect(manifest).not.toContain(fragmentKey)
     expect(keys).toContain(fragmentKey)
+    expect(userDataContents.join('\n')).toContain(server.apiKey)
+    expect(userDataContents.join('\n')).not.toContain(fragmentKey)
     expect(ignore.split(/\r?\n/)).toContain('share-note.keys.json')
     if (process.platform !== 'win32') expect((await stat(keyFile)).mode & 0o777).toBe(0o600)
   })

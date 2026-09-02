@@ -1,0 +1,14 @@
+{
+  "projectRoot": "/absolute/path/to/project",
+  "previewId": "preview-00000000-0000-4000-8000-000000000000",
+  "expectedContentHash": "<exact-preview-content-hash>",
+  "authorization": {
+    "granted": true,
+    "action": "publish",
+    "profile": "default",
+    "projectBindingHash": "<exact-preview-project-binding-hash>",
+    "contentHash": "<exact-preview-content-hash>",
+    "encryption": "encrypted"
+  },
+  "returnShareUrl": true
+}

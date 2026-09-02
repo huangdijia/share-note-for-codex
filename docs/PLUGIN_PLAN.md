@@ -165,12 +165,13 @@ codex-share-note/
 |---|---|---|
 | setup | profile、apiBaseUrl、webBaseUrl、安全凭证输入方式 | 配置状态和缺失项，不返回凭证 |
 | doctor | profile | 运行时、配置、网络和只读鉴权检查结果 |
-| preview | profile、sourcePath、format | previewPath、contentHash、字数、资源清单、警告 |
-| publish | profile、sourcePath、预览内容哈希、发布授权 | 本地记录 ID、分享链接、验证状态 |
+| configure-project | projectRoot、已存在的 profile、可选旧记录导入 | 项目绑定、迁移计数、警告 |
+| preview | projectRoot、相对 sourcePath、format | previewPath、contentHash、projectBindingHash、字数、资源清单、警告 |
+| publish | projectRoot、预览内容哈希、项目绑定、发布授权 | 项目记录 ID、分享链接、验证状态 |
 | read | URL 或本地记录 ID、输出格式 | title、正文或输出文件、format、warnings |
-| update | recordId、sourcePath、expectedContentHash、授权 | 原链接、验证状态、差异摘要 |
-| list | profile、project、query | 本地登记的记录，明确 scope=local |
-| delete | recordId、目标确认与授权 | requestStatus、verificationStatus、源文件保留状态 |
+| update | projectRoot、recordId、预览与项目绑定、授权 | 原链接、验证状态、差异摘要 |
+| list | projectRoot、query | 当前项目登记的记录，明确 scope=project |
+| delete | projectRoot、recordId、目标确认与授权 | requestStatus、verificationStatus、源文件保留状态 |
 
 工具输出建议：
 
@@ -200,21 +201,16 @@ codex-share-note/
 
 ### 6.1 配置分层
 
-用户级可信配置保存服务白名单、默认 profile 和安全策略。项目可选配置只保存 profile 名称、默认标题/模板、允许发布的路径，不保存 API key、UID、解密密钥或带 fragment 的分享链接。
+用户级可信配置保存服务白名单、profile、绝对允许路径、安全上限和 API 凭证引用。每个项目必须用 `.openai/share-note.json` 保存所选 profile、文档发布记录和操作状态；该清单不保存 API key、UID、解密密钥或带 fragment 的分享链接。每篇笔记的解密 key 单独明文保存在被 `.openai/.gitignore` 排除的 `.openai/share-note.keys.json`，POSIX 权限为 `0600`。
 
 示例配置字段：
 
 ~~~markdown
 {
+  "schemaVersion": 1,
   "profile": "team",
-  "apiBaseUrl": "<用户配置的 API 服务地址>",
-  "webBaseUrl": "<用户配置的分享网页地址>",
-  "credentialRef": "<安全存储引用>",
-  "protocolProfile": "<经过兼容性验证的协议配置>",
-  "defaultEncryption": true,
-  "allowedSourceRoots": ["docs", "reports"],
-  "embeddedAssetsPolicy": "block",
-  "allowUnencryptedPublish": false
+  "records": [],
+  "operations": []
 }
 ~~~
 
@@ -230,15 +226,14 @@ API 地址与分享网页地址是不同角色，不能假定始终同域。写�
 
 ### 6.3 本地数据
 
-运行数据存放在用户级目录，例如 `~/.local/share/codex-share-note/`；macOS 可使用应用数据目录。具体路径由平台适配器统一处理，不是 Codex 自带固定路径。
+可信 profile、API 凭证、预览、锁和浏览器初始化状态存放在用户级目录，例如 `~/.local/share/codex-share-note/`；macOS 可使用应用数据目录。项目记录与操作保存在项目清单，笔记 key 保存在项目的忽略文件。具体用户数据路径由平台适配器统一处理，不是 Codex 自带固定路径。
 
 | 数据 | 保存内容 |
 |---|---|
 | profiles | 已批准的服务地址、协议配置、credentialRef |
-| records | 本地 recordId、服务/profile、身份引用、源文件、远端 filename、无 fragment URL |
+| project manifest | 项目相对源文件、recordId、服务/profile、身份引用、远端 filename、无 fragment URL、操作状态 |
 | content | 源内容 SHA-256、最终正文 SHA-256、标题、渲染器版本 |
-| secret references | 笔记解密密钥引用，不在普通记录中保存密钥 |
-| operations | 操作 ID、目标、状态、时间、脱敏错误、回读结果 |
+| project key file | recordId 到笔记解密 key 的映射；明文、`0600`、必须保持 Git 忽略 |
 
 记录匹配至少使用 profile、服务 origin、身份引用和本地 recordId，不能只按标题或文件路径匹配。
 
