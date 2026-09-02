@@ -29,9 +29,10 @@ The API and web origins are configured separately. Credentials are sent only to 
 | `POST /v1/file/check-files` | non-writing authenticated doctor check with `files: []` | limited only when no ambiguity is created |
 | `POST /v1/file/create-note` | create or update by `filename` | no blind retry |
 | `POST /v1/file/delete` | delete an owned HTML note | no blind retry; verify with credential-free GET |
+| `GET /v1/account/get-key?id=<random UID>` | user-driven browser initialization only | no credential header; no automatic retry or fallback |
 | `GET <share URL>` | read or verify page | limited retry, exact approved web origin only |
 
-`GET /v1/account/get-key` is an interactive initialization route that can include a human-verification step and an Obsidian redirect. This plugin does not use it for doctor, key rotation, or recovery. The first release imports a credential the user obtained legitimately.
+`GET /v1/account/get-key` is an interactive initialization route that can include a human-verification step and an Obsidian redirect. `setup-browser-start` may open only the exact configured API-origin route with a cryptographically random, URL-encoded UID. It does not use the route for doctor, key rotation, recovery, DOM scraping, log reading, clipboard monitoring, or an Obsidian callback. `setup-browser-complete` receives the displayed key only through a local non-echoing terminal prompt.
 
 ## Create/update wire shape
 

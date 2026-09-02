@@ -4,12 +4,12 @@ import { ShareNoteHttpClient } from '../../src/http/client.js'
 import { PROTOCOL_PROFILE } from '../../src/protocol/profile.js'
 
 const profile: ProfileConfig = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   name: 'enterprise',
   apiBaseUrl: 'https://api.enterprise.example',
   webBaseUrl: 'https://share.enterprise.example',
   credentialRef: {
-    type: 'encrypted-file',
+    type: 'plaintext-file',
     id: 'credentials:enterprise'
   },
   protocolProfile: PROTOCOL_PROFILE.id,

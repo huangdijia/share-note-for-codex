@@ -1,5 +1,7 @@
 export type OperationStatus =
   | 'configured'
+  | 'awaiting_user'
+  | 'cancelled'
   | 'healthy'
   | 'previewed'
   | 'verified'

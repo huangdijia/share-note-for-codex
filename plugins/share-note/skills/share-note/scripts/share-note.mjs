@@ -5667,27 +5667,27 @@ var require_util = __commonJS({
       };
     }
     var normalize = lruMemoize(function normalize2(aPath) {
-      var path10 = aPath;
+      var path11 = aPath;
       var url = urlParse(aPath);
       if (url) {
         if (!url.path) {
           return aPath;
         }
-        path10 = url.path;
+        path11 = url.path;
       }
-      var isAbsolute = exports.isAbsolute(path10);
+      var isAbsolute = exports.isAbsolute(path11);
       var parts = [];
       var start = 0;
       var i = 0;
       while (true) {
         start = i;
-        i = path10.indexOf("/", start);
+        i = path11.indexOf("/", start);
         if (i === -1) {
-          parts.push(path10.slice(start));
+          parts.push(path11.slice(start));
           break;
         } else {
-          parts.push(path10.slice(start, i));
-          while (i < path10.length && path10[i] === "/") {
+          parts.push(path11.slice(start, i));
+          while (i < path11.length && path11[i] === "/") {
             i++;
           }
         }
@@ -5708,15 +5708,15 @@ var require_util = __commonJS({
           }
         }
       }
-      path10 = parts.join("/");
-      if (path10 === "") {
-        path10 = isAbsolute ? "/" : ".";
+      path11 = parts.join("/");
+      if (path11 === "") {
+        path11 = isAbsolute ? "/" : ".";
       }
       if (url) {
-        url.path = path10;
+        url.path = path11;
         return urlGenerate(url);
       }
-      return path10;
+      return path11;
     });
     exports.normalize = normalize;
     function join(aRoot, aPath) {
@@ -7408,11 +7408,11 @@ var require_previous_map = __commonJS({
     var { existsSync, readFileSync, realpathSync } = __require("fs");
     var { dirname, isAbsolute, join, relative, sep } = __require("path");
     var { SourceMapConsumer, SourceMapGenerator } = require_source_map();
-    function realPath(path10) {
+    function realPath(path11) {
       try {
-        return realpathSync(path10);
+        return realpathSync(path11);
       } catch {
-        return path10;
+        return path11;
       }
     }
     function fromBase64(str) {
@@ -7475,19 +7475,19 @@ var require_previous_map = __commonJS({
           this.annotation = this.getAnnotationURL(css.substring(start, end));
         }
       }
-      loadFile(path10, cssFile, trusted) {
+      loadFile(path11, cssFile, trusted) {
         if (!trusted && !this.unsafeMap) {
-          if (!/\.map$/i.test(path10)) return void 0;
+          if (!/\.map$/i.test(path11)) return void 0;
           if (!cssFile) return void 0;
-          let rel = relative(realPath(dirname(cssFile)), realPath(path10));
+          let rel = relative(realPath(dirname(cssFile)), realPath(path11));
           if (rel === ".." || rel.startsWith(".." + sep) || isAbsolute(rel)) {
             return void 0;
           }
         }
-        this.root = dirname(path10);
-        if (existsSync(path10)) {
-          this.mapFile = path10;
-          return readFileSync(path10, "utf-8").toString().trim();
+        this.root = dirname(path11);
+        if (existsSync(path11)) {
+          this.mapFile = path11;
+          return readFileSync(path11, "utf-8").toString().trim();
         }
       }
       loadMap(file, prev) {
@@ -8260,9 +8260,9 @@ var require_map_generator = __commonJS({
         if (typeof this.mapOpts.annotation === "string") {
           from = dirname(resolve(from, this.mapOpts.annotation));
         }
-        let path10 = relative(from, file);
-        this.memoizedPaths.set(file, path10);
-        return path10;
+        let path11 = relative(from, file);
+        this.memoizedPaths.set(file, path11);
+        return path11;
       }
       previous() {
         if (!this.previousMaps) {
@@ -8317,12 +8317,12 @@ var require_map_generator = __commonJS({
           return window.btoa(unescape(encodeURIComponent(str)));
         }
       }
-      toFileUrl(path10) {
-        let cached = this.memoizedFileURLs.get(path10);
+      toFileUrl(path11) {
+        let cached = this.memoizedFileURLs.get(path11);
         if (cached) return cached;
         if (pathToFileURL) {
-          let fileURL = pathToFileURL(path10).toString();
-          this.memoizedFileURLs.set(path10, fileURL);
+          let fileURL = pathToFileURL(path11).toString();
+          this.memoizedFileURLs.set(path11, fileURL);
           return fileURL;
         } else {
           throw new Error(
@@ -8330,14 +8330,14 @@ var require_map_generator = __commonJS({
           );
         }
       }
-      toUrl(path10) {
-        let cached = this.memoizedURLs.get(path10);
+      toUrl(path11) {
+        let cached = this.memoizedURLs.get(path11);
         if (cached) return cached;
         if (sep === "\\") {
-          path10 = path10.replace(/\\/g, "/");
+          path11 = path11.replace(/\\/g, "/");
         }
-        let url = encodeURI(path10).replace(/[#?]/g, encodeURIComponent);
-        this.memoizedURLs.set(path10, url);
+        let url = encodeURI(path11).replace(/[#?]/g, encodeURIComponent);
+        this.memoizedURLs.set(path11, url);
         return url;
       }
     };
@@ -16531,32 +16531,32 @@ var require_URL = __commonJS({
           else
             return basepath.substring(0, lastslash + 1) + refpath;
         }
-        function remove_dot_segments(path10) {
-          if (!path10) return path10;
+        function remove_dot_segments(path11) {
+          if (!path11) return path11;
           var output = "";
-          while (path10.length > 0) {
-            if (path10 === "." || path10 === "..") {
-              path10 = "";
+          while (path11.length > 0) {
+            if (path11 === "." || path11 === "..") {
+              path11 = "";
               break;
             }
-            var twochars = path10.substring(0, 2);
-            var threechars = path10.substring(0, 3);
-            var fourchars = path10.substring(0, 4);
+            var twochars = path11.substring(0, 2);
+            var threechars = path11.substring(0, 3);
+            var fourchars = path11.substring(0, 4);
             if (threechars === "../") {
-              path10 = path10.substring(3);
+              path11 = path11.substring(3);
             } else if (twochars === "./") {
-              path10 = path10.substring(2);
+              path11 = path11.substring(2);
             } else if (threechars === "/./") {
-              path10 = "/" + path10.substring(3);
-            } else if (twochars === "/." && path10.length === 2) {
-              path10 = "/";
-            } else if (fourchars === "/../" || threechars === "/.." && path10.length === 3) {
-              path10 = "/" + path10.substring(4);
+              path11 = "/" + path11.substring(3);
+            } else if (twochars === "/." && path11.length === 2) {
+              path11 = "/";
+            } else if (fourchars === "/../" || threechars === "/.." && path11.length === 3) {
+              path11 = "/" + path11.substring(4);
               output = output.replace(/\/?[^\/]*$/, "");
             } else {
-              var segment = path10.match(/(\/?([^\/]*))/)[0];
+              var segment = path11.match(/(\/?([^\/]*))/)[0];
               output += segment;
-              path10 = path10.substring(segment.length);
+              path11 = path11.substring(segment.length);
             }
           }
           return output;
@@ -28793,7 +28793,10 @@ var require_turndown_cjs = __commonJS({
 
 // src/cli.ts
 import { readFile as readFile4 } from "node:fs/promises";
-import path9 from "node:path";
+import path10 from "node:path";
+
+// src/app.ts
+import { randomBytes as randomBytes2 } from "node:crypto";
 
 // src/errors.ts
 var ShareNoteError = class extends Error {
@@ -28831,10 +28834,16 @@ var PROTOCOL_PROFILE = {
   chunkSizeUtf16: 2e3,
   auth: "sha256(nonce + apiKey)",
   routes: {
+    authorization: "/v1/account/get-key",
     doctor: "/v1/file/check-files",
     create: "/v1/file/create-note",
     delete: "/v1/file/delete"
   }
+};
+var PUBLIC_SHARE_NOTE_SERVICE = {
+  protocolProfile: PROTOCOL_PROFILE.id,
+  apiBaseUrl: "https://api.note.sx",
+  webBaseUrl: "https://share.note.sx"
 };
 
 // src/protocol/auth.ts
@@ -29066,7 +29075,7 @@ async function buildProfileConfig(input, credentialRef) {
     throw new ShareNoteError("invalid_request", "maxResponseBytes is outside the supported range");
   }
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     name: validateProfileName(input.profile),
     apiBaseUrl: normalizeBaseUrl(input.apiBaseUrl, allowInsecureLoopback),
     webBaseUrl: normalizeBaseUrl(input.webBaseUrl, allowInsecureLoopback),
@@ -29084,7 +29093,7 @@ async function buildProfileConfig(input, credentialRef) {
 function assertProfile(value, expectedName) {
   if (!value || typeof value !== "object") throw new ShareNoteError("configuration_missing", "Profile is invalid");
   const profile = value;
-  if (profile.schemaVersion !== 2 || profile.name !== expectedName || typeof profile.apiBaseUrl !== "string" || typeof profile.webBaseUrl !== "string" || profile.protocolProfile !== PROTOCOL_PROFILE.id || profile.defaultEncryption !== true || profile.embeddedAssetsPolicy !== "block" || profile.allowUnencryptedPublish !== false || !Array.isArray(profile.allowedSourceRoots) || !profile.credentialRef || profile.credentialRef.type !== "encrypted-file" || typeof profile.credentialRef.id !== "string" || profile.credentialRef.id !== `credentials:${expectedName}`) {
+  if (profile.schemaVersion !== 3 || profile.name !== expectedName || typeof profile.apiBaseUrl !== "string" || typeof profile.webBaseUrl !== "string" || profile.protocolProfile !== PROTOCOL_PROFILE.id || profile.defaultEncryption !== true || profile.embeddedAssetsPolicy !== "block" || profile.allowUnencryptedPublish !== false || !Array.isArray(profile.allowedSourceRoots) || !profile.credentialRef || profile.credentialRef.type !== "plaintext-file" || typeof profile.credentialRef.id !== "string" || profile.credentialRef.id !== `credentials:${expectedName}`) {
     throw new ShareNoteError("configuration_missing", "Profile schema or security policy is invalid");
   }
   return profile;
@@ -38984,26 +38993,346 @@ async function listLocalRecords(dataDirectory, request) {
   };
 }
 
+// src/platform/browser.ts
+import { spawn } from "node:child_process";
+function approvedBrowserUrl(value, approvedOrigin) {
+  let target;
+  let approved;
+  try {
+    target = new URL(value);
+    approved = new URL(approvedOrigin);
+  } catch {
+    throw new ShareNoteError("invalid_request", "Browser authorization URL is invalid");
+  }
+  if (target.protocol !== "https:" && target.protocol !== "http:" || target.origin !== approved.origin || target.username || target.password || target.hash) {
+    throw new ShareNoteError("source_blocked", "Browser authorization URL is outside the approved API origin");
+  }
+  return target.toString();
+}
+function createBrowserLaunchSpec(value, approvedOrigin, platform = process.platform) {
+  const target = approvedBrowserUrl(value, approvedOrigin);
+  const options = {
+    detached: true,
+    shell: false,
+    stdio: "ignore",
+    windowsHide: true
+  };
+  if (platform === "darwin") {
+    return { command: "open", arguments: [target], options };
+  }
+  if (platform === "win32") {
+    return {
+      command: "rundll32.exe",
+      arguments: ["url.dll,FileProtocolHandler", target],
+      options
+    };
+  }
+  if (platform === "linux") {
+    return { command: "xdg-open", arguments: [target], options };
+  }
+  throw new ShareNoteError("invalid_request", "System browser launch is unsupported on this platform");
+}
+async function openInSystemBrowser(value, approvedOrigin, platform = process.platform, spawnImplementation = spawn) {
+  const spec = createBrowserLaunchSpec(value, approvedOrigin, platform);
+  await new Promise((resolve, reject) => {
+    let child;
+    try {
+      child = spawnImplementation(spec.command, spec.arguments, spec.options);
+    } catch {
+      reject(new ShareNoteError("network_error", "System browser could not be opened"));
+      return;
+    }
+    child.once("spawn", () => {
+      child.unref();
+      resolve();
+    });
+    child.once("error", () => {
+      reject(new ShareNoteError("network_error", "System browser could not be opened"));
+    });
+  });
+}
+
+// src/state/pending-setup.ts
+import { createHash as createHash6 } from "node:crypto";
+import { rm as rm3 } from "node:fs/promises";
+import path7 from "node:path";
+var MINIMUM_EXPIRY_SECONDS = 60;
+var MAXIMUM_EXPIRY_SECONDS = 30 * 60;
+var DEFAULT_EXPIRY_SECONDS = 10 * 60;
+function bindingValue(value) {
+  return JSON.stringify({
+    schemaVersion: value.schemaVersion,
+    profile: value.profile,
+    uid: value.uid,
+    service: value.service,
+    apiBaseUrl: value.apiBaseUrl,
+    webBaseUrl: value.webBaseUrl,
+    allowedSourceRoots: value.allowedSourceRoots,
+    allowInsecureLoopback: value.allowInsecureLoopback,
+    maxSourceBytes: value.maxSourceBytes,
+    maxResponseBytes: value.maxResponseBytes,
+    createdAt: value.createdAt,
+    expiresAt: value.expiresAt
+  });
+}
+function bindingHash(value) {
+  return createHash6("sha256").update(bindingValue(value), "utf8").digest("hex");
+}
+function assertPending(value, expectedProfile) {
+  if (!value || typeof value !== "object") {
+    throw new ShareNoteError("configuration_missing", "Pending browser setup is invalid");
+  }
+  const pending = value;
+  if (pending.schemaVersion !== 1 || pending.profile !== expectedProfile || typeof pending.uid !== "string" || !/^[A-Za-z0-9_-]{8,128}$/.test(pending.uid) || pending.service !== "public" && pending.service !== "self-hosted" || typeof pending.apiBaseUrl !== "string" || typeof pending.webBaseUrl !== "string" || !Array.isArray(pending.allowedSourceRoots) || pending.allowedSourceRoots.some((root) => typeof root !== "string") || typeof pending.allowInsecureLoopback !== "boolean" || !Number.isSafeInteger(pending.maxSourceBytes) || !Number.isSafeInteger(pending.maxResponseBytes) || typeof pending.createdAt !== "string" || !Number.isFinite(Date.parse(pending.createdAt)) || typeof pending.expiresAt !== "string" || !Number.isFinite(Date.parse(pending.expiresAt)) || typeof pending.bindingHash !== "string") {
+    throw new ShareNoteError("configuration_missing", "Pending browser setup schema is invalid");
+  }
+  const complete = pending;
+  const { bindingHash: storedHash, ...bound } = complete;
+  if (bindingHash(bound) !== storedHash) {
+    throw new ShareNoteError("source_blocked", "Pending browser setup source binding changed");
+  }
+  return complete;
+}
+function pendingFieldsFromProfile(profile, uid, service) {
+  return {
+    profile: profile.name,
+    uid,
+    service,
+    apiBaseUrl: profile.apiBaseUrl,
+    webBaseUrl: profile.webBaseUrl,
+    allowedSourceRoots: profile.allowedSourceRoots,
+    allowInsecureLoopback: profile.allowInsecureLoopback,
+    maxSourceBytes: profile.maxSourceBytes,
+    maxResponseBytes: profile.maxResponseBytes
+  };
+}
+var PendingSetupStore = class {
+  constructor(dataDirectory, now = Date.now) {
+    this.dataDirectory = dataDirectory;
+    this.now = now;
+  }
+  dataDirectory;
+  now;
+  pathFor(profile) {
+    return path7.join(this.dataDirectory, "pending-setups", `${validateProfileName(profile)}.json`);
+  }
+  async read(profile) {
+    const safeProfile = validateProfileName(profile);
+    const value = await readJsonFile(this.pathFor(safeProfile)).catch((error) => {
+      if (error.code === "ENOENT") return void 0;
+      throw error;
+    });
+    return value === void 0 ? void 0 : assertPending(value, safeProfile);
+  }
+  async create(fields, expirySeconds = DEFAULT_EXPIRY_SECONDS) {
+    if (!Number.isSafeInteger(expirySeconds) || expirySeconds < MINIMUM_EXPIRY_SECONDS || expirySeconds > MAXIMUM_EXPIRY_SECONDS) {
+      throw new ShareNoteError("invalid_request", "Browser setup expiry must be between 60 and 1800 seconds");
+    }
+    return withLocalLock(this.dataDirectory, `pending-setup:${fields.profile}`, async () => {
+      const existing = await this.read(fields.profile);
+      if (existing && Date.parse(existing.expiresAt) > this.now()) {
+        throw new ShareNoteError("conflict", "A browser setup is already pending for this profile");
+      }
+      if (existing) await rm3(this.pathFor(fields.profile), { force: true });
+      const createdAt = new Date(this.now()).toISOString();
+      const expiresAt = new Date(this.now() + expirySeconds * 1e3).toISOString();
+      const bound = { schemaVersion: 1, ...fields, createdAt, expiresAt };
+      const pending = { ...bound, bindingHash: bindingHash(bound) };
+      await writeJsonAtomic(this.pathFor(fields.profile), pending);
+      return pending;
+    });
+  }
+  async complete(profile, operation) {
+    const safeProfile = validateProfileName(profile);
+    return withLocalLock(this.dataDirectory, `pending-setup:${safeProfile}`, async () => {
+      const pending = await this.read(safeProfile);
+      if (!pending) throw new ShareNoteError("configuration_missing", "No browser setup is pending for this profile");
+      if (Date.parse(pending.expiresAt) <= this.now()) {
+        await rm3(this.pathFor(safeProfile), { force: true });
+        throw new ShareNoteError("configuration_missing", "Pending browser setup expired; start again");
+      }
+      const result = await operation(pending);
+      await rm3(this.pathFor(safeProfile), { force: true });
+      return result;
+    });
+  }
+  async cancel(profile) {
+    const safeProfile = validateProfileName(profile);
+    await withLocalLock(this.dataDirectory, `pending-setup:${safeProfile}`, async () => {
+      const pending = await this.read(safeProfile);
+      if (!pending) throw new ShareNoteError("configuration_missing", "No browser setup is pending for this profile");
+      await rm3(this.pathFor(safeProfile), { force: true });
+    });
+  }
+  async discard(profile) {
+    const safeProfile = validateProfileName(profile);
+    await withLocalLock(this.dataDirectory, `pending-setup:${safeProfile}`, async () => {
+      await rm3(this.pathFor(safeProfile), { force: true });
+    });
+  }
+};
+
 // src/app.ts
+var BROWSER_API_KEY_ENV_VAR = "SHARE_NOTE_BROWSER_API_KEY";
+var INTERNAL_BROWSER_CREDENTIAL_ENV_VAR = "SHARE_NOTE_BROWSER_CREDENTIAL_INTERNAL";
+var DEFAULT_BROWSER_SETUP_DEPENDENCIES = {
+  now: Date.now,
+  createUid: createBrowserSetupUid,
+  openBrowser: openInSystemBrowser
+};
+function createBrowserSetupUid() {
+  return randomBytes2(32).toString("base64url");
+}
+function buildBrowserAuthorizationUrl(apiBaseUrl, uid) {
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(uid)) {
+    throw new ShareNoteError("invalid_request", "Generated browser setup identity is invalid");
+  }
+  const base = new URL(apiBaseUrl);
+  const target = new URL(PROTOCOL_PROFILE.routes.authorization, base.origin);
+  target.searchParams.set("id", uid);
+  if (target.origin !== base.origin) {
+    throw new ShareNoteError("source_blocked", "Browser authorization route changed API origin");
+  }
+  return target.toString();
+}
 var ShareNoteApplication = class {
-  constructor(dataDirectory, secrets, fetchImplementation = fetch, environment = process.env) {
+  constructor(dataDirectory, secrets, fetchImplementation = fetch, environment = process.env, browserSetup = DEFAULT_BROWSER_SETUP_DEPENDENCIES) {
     this.dataDirectory = dataDirectory;
     this.secrets = secrets;
     this.fetchImplementation = fetchImplementation;
     this.environment = environment;
+    this.browserSetup = browserSetup;
     this.configs = new ConfigStore(dataDirectory);
   }
   dataDirectory;
   secrets;
   fetchImplementation;
   environment;
+  browserSetup;
   configs;
+  async setupBrowserStart(request) {
+    let input;
+    if (request.service === "public") {
+      if (request.apiBaseUrl !== void 0 || request.webBaseUrl !== void 0 || request.confirmedApiOrigin !== void 0 || request.confirmedWebOrigin !== void 0 || request.allowInsecureLoopback !== void 0) {
+        throw new ShareNoteError("invalid_request", "Public browser setup uses the frozen public service origins");
+      }
+      input = {
+        profile: request.profile,
+        apiBaseUrl: PUBLIC_SHARE_NOTE_SERVICE.apiBaseUrl,
+        webBaseUrl: PUBLIC_SHARE_NOTE_SERVICE.webBaseUrl,
+        allowedSourceRoots: request.allowedSourceRoots,
+        ...request.maxSourceBytes === void 0 ? {} : { maxSourceBytes: request.maxSourceBytes },
+        ...request.maxResponseBytes === void 0 ? {} : { maxResponseBytes: request.maxResponseBytes }
+      };
+    } else if (request.service === "self-hosted") {
+      if (typeof request.apiBaseUrl !== "string" || typeof request.webBaseUrl !== "string" || typeof request.confirmedApiOrigin !== "string" || typeof request.confirmedWebOrigin !== "string") {
+        throw new ShareNoteError(
+          "invalid_request",
+          "Self-hosted browser setup requires separate API and web origin confirmations"
+        );
+      }
+      input = {
+        profile: request.profile,
+        apiBaseUrl: request.apiBaseUrl,
+        webBaseUrl: request.webBaseUrl,
+        allowedSourceRoots: request.allowedSourceRoots,
+        ...request.allowInsecureLoopback === void 0 ? {} : { allowInsecureLoopback: request.allowInsecureLoopback },
+        ...request.maxSourceBytes === void 0 ? {} : { maxSourceBytes: request.maxSourceBytes },
+        ...request.maxResponseBytes === void 0 ? {} : { maxResponseBytes: request.maxResponseBytes }
+      };
+    } else {
+      throw new ShareNoteError("invalid_request", "Browser setup service must be public or self-hosted");
+    }
+    const placeholder = {
+      type: "plaintext-file",
+      id: `credentials:${request.profile}`
+    };
+    const profile = await buildProfileConfig(input, placeholder);
+    if (request.service === "self-hosted") {
+      if (request.confirmedApiOrigin !== new URL(profile.apiBaseUrl).origin || request.confirmedWebOrigin !== new URL(profile.webBaseUrl).origin) {
+        throw new ShareNoteError("source_blocked", "Self-hosted API or web origin confirmation does not match");
+      }
+    }
+    const uid = this.browserSetup.createUid();
+    const authorizationUrl = buildBrowserAuthorizationUrl(profile.apiBaseUrl, uid);
+    const pendingStore = new PendingSetupStore(this.dataDirectory, this.browserSetup.now);
+    const pending = await pendingStore.create(
+      pendingFieldsFromProfile(profile, uid, request.service),
+      request.expiresInSeconds
+    );
+    try {
+      await this.browserSetup.openBrowser(authorizationUrl, new URL(profile.apiBaseUrl).origin);
+    } catch (error) {
+      await pendingStore.discard(profile.name);
+      if (error instanceof ShareNoteError) throw error;
+      throw new ShareNoteError("network_error", "System browser could not be opened");
+    }
+    return {
+      ok: true,
+      action: "setup-browser-start",
+      status: "awaiting_user",
+      profile: profile.name,
+      service: request.service,
+      apiOrigin: new URL(profile.apiBaseUrl).origin,
+      webOrigin: new URL(profile.webBaseUrl).origin,
+      expiresAt: pending.expiresAt,
+      warnings: [
+        "Complete the human verification in the system browser, then run setup-browser-complete in the same local account.",
+        "The client does not read browser content, the clipboard, or an Obsidian callback."
+      ]
+    };
+  }
+  async setupBrowserComplete(request) {
+    const pendingStore = new PendingSetupStore(this.dataDirectory, this.browserSetup.now);
+    if (request.cancel === true) {
+      await pendingStore.cancel(request.profile);
+      return {
+        ok: true,
+        action: "setup-browser-complete",
+        status: "cancelled",
+        profile: request.profile,
+        warnings: ["The pending browser setup was deleted; no profile was configured."]
+      };
+    }
+    if (request.cancel !== void 0 && request.cancel !== false) {
+      throw new ShareNoteError("invalid_request", "cancel must be a boolean");
+    }
+    try {
+      return await pendingStore.complete(request.profile, async (pending) => {
+        const apiKey = this.environment[BROWSER_API_KEY_ENV_VAR];
+        if (!apiKey) {
+          throw new ShareNoteError("credential_missing", "Hidden browser API key input is missing");
+        }
+        this.environment[INTERNAL_BROWSER_CREDENTIAL_ENV_VAR] = JSON.stringify({
+          uid: pending.uid,
+          apiKey
+        });
+        try {
+          const result = await this.setup({
+            profile: pending.profile,
+            apiBaseUrl: pending.apiBaseUrl,
+            webBaseUrl: pending.webBaseUrl,
+            allowedSourceRoots: pending.allowedSourceRoots,
+            allowInsecureLoopback: pending.allowInsecureLoopback,
+            maxSourceBytes: pending.maxSourceBytes,
+            maxResponseBytes: pending.maxResponseBytes,
+            credentialEnvVar: INTERNAL_BROWSER_CREDENTIAL_ENV_VAR
+          });
+          return {
+            ...result,
+            action: "setup-browser-complete"
+          };
+        } finally {
+          delete this.environment[INTERNAL_BROWSER_CREDENTIAL_ENV_VAR];
+        }
+      });
+    } finally {
+      delete this.environment[BROWSER_API_KEY_ENV_VAR];
+    }
+  }
   async setup(request) {
     if (!/^[A-Z][A-Z0-9_]{0,127}$/.test(request.credentialEnvVar)) {
       throw new ShareNoteError("invalid_request", "credentialEnvVar must name a process-scoped environment variable");
-    }
-    if (request.credentialEnvVar === "SHARE_NOTE_MASTER_PASSWORD") {
-      throw new ShareNoteError("invalid_request", "credentialEnvVar cannot reuse SHARE_NOTE_MASTER_PASSWORD");
     }
     const rawCredential = this.environment[request.credentialEnvVar];
     if (!rawCredential) {
@@ -39023,7 +39352,7 @@ var ShareNoteApplication = class {
       throw new ShareNoteError("credential_missing", "Credential import must contain non-empty uid and apiKey strings");
     }
     const placeholder = {
-      type: "encrypted-file",
+      type: "plaintext-file",
       id: `credentials:${request.profile}`
     };
     await buildProfileConfig(request, placeholder);
@@ -39039,7 +39368,10 @@ var ShareNoteApplication = class {
       status: "configured",
       profile: profile.name,
       protocolProfile: profile.protocolProfile,
-      warnings: ["Credential was encrypted in the local vault; online compatibility has not yet been verified."]
+      warnings: [
+        "Credential is stored as plaintext in a private local file; any process with access to the user data directory can read it.",
+        "Online compatibility has not yet been verified."
+      ]
     };
   }
   async doctor(request) {
@@ -39127,102 +39459,83 @@ var ShareNoteApplication = class {
 
 // src/platform/paths.ts
 import { homedir } from "node:os";
-import path7 from "node:path";
+import path8 from "node:path";
 function userDataDirectory(environment = process.env, platform = process.platform, homeDirectory = homedir()) {
   const override = environment.SHARE_NOTE_DATA_DIR;
-  if (override) return path7.resolve(override);
+  if (override) return path8.resolve(override);
   if (platform === "darwin") {
-    return path7.join(homeDirectory, "Library", "Application Support", "codex-share-note");
+    return path8.join(homeDirectory, "Library", "Application Support", "codex-share-note");
   }
   if (platform === "win32") {
-    return path7.join(environment.APPDATA ?? path7.join(homeDirectory, "AppData", "Roaming"), "codex-share-note");
+    return path8.join(environment.APPDATA ?? path8.join(homeDirectory, "AppData", "Roaming"), "codex-share-note");
   }
-  return path7.join(environment.XDG_DATA_HOME ?? path7.join(homeDirectory, ".local", "share"), "codex-share-note");
+  return path8.join(environment.XDG_DATA_HOME ?? path8.join(homeDirectory, ".local", "share"), "codex-share-note");
 }
 
-// src/secrets/encrypted-file.ts
-import {
-  createCipheriv,
-  createDecipheriv,
-  createHash as createHash6,
-  randomBytes as randomBytes2,
-  scrypt as scryptCallback
-} from "node:crypto";
-import path8 from "node:path";
-var MASTER_PASSWORD_ENV_VAR = "SHARE_NOTE_MASTER_PASSWORD";
-var AAD_PREFIX = "share-note-secret:v1:";
-var SCRYPT_N = 32768;
-var SCRYPT_R = 8;
-var SCRYPT_P = 1;
-var KEY_LENGTH = 32;
-var SCRYPT_MAX_MEMORY = 128 * 1024 * 1024;
-var EnvironmentMasterPasswordProvider = class {
-  constructor(environment = process.env, variableName = MASTER_PASSWORD_ENV_VAR) {
-    this.environment = environment;
-    this.variableName = variableName;
-  }
-  environment;
-  variableName;
-  cachedPassword;
-  async getMasterPassword() {
-    if (this.cachedPassword) return this.cachedPassword;
-    const password = this.environment[this.variableName];
-    delete this.environment[this.variableName];
-    if (!password) {
-      throw new ShareNoteError(
-        "secure_store_unavailable",
-        `${this.variableName} must be set for actions that access encrypted secrets`
-      );
-    }
-    if (password.length < 16) {
-      throw new ShareNoteError(
-        "secure_store_unavailable",
-        `${this.variableName} must contain at least 16 characters`
-      );
-    }
-    this.cachedPassword = password;
-    return password;
-  }
-};
-function deriveKey(password, salt) {
-  return new Promise((resolve, reject) => {
-    scryptCallback(
-      password,
-      salt,
-      KEY_LENGTH,
-      { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P, maxmem: SCRYPT_MAX_MEMORY },
-      (error, key) => error ? reject(error) : resolve(key)
+// src/platform/hidden-input.ts
+var MAXIMUM_HIDDEN_INPUT_CHARACTERS = 16384;
+async function readHiddenInput(prompt, input = process.stdin, output = process.stderr) {
+  if (!input.isTTY || !output.isTTY || typeof input.setRawMode !== "function") {
+    throw new ShareNoteError(
+      "secure_store_unavailable",
+      "Hidden setup input requires an interactive local terminal"
     );
+  }
+  output.write(prompt);
+  const wasRaw = input.isRaw === true;
+  return new Promise((resolve, reject) => {
+    let value = "";
+    let settled = false;
+    const cleanup = () => {
+      input.off("data", onData);
+      input.setRawMode?.(wasRaw);
+      input.pause();
+      output.write("\n");
+    };
+    const finish = (result, error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (error) reject(error);
+      else resolve(result ?? "");
+    };
+    const onData = (chunk) => {
+      for (const character of chunk.toString("utf8")) {
+        if (character === "\r" || character === "\n") {
+          finish(value);
+          return;
+        }
+        if (character === "" || character === "") {
+          finish(void 0, new ShareNoteError("invalid_request", "Hidden setup input was cancelled"));
+          return;
+        }
+        if (character === "" || character === "\b") {
+          value = value.slice(0, -1);
+          continue;
+        }
+        value += character;
+        if (value.length > MAXIMUM_HIDDEN_INPUT_CHARACTERS) {
+          value = "";
+          finish(void 0, new ShareNoteError("invalid_request", "Hidden setup input is too long"));
+          return;
+        }
+      }
+    };
+    input.setRawMode(true);
+    input.resume();
+    input.on("data", onData);
   });
 }
-function decodeBase643(value, expectedBytes) {
-  if (typeof value !== "string" || value.length === 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(value)) {
-    throw new Error("Invalid encrypted secret encoding");
-  }
-  const decoded = Buffer.from(value, "base64");
-  if (decoded.toString("base64") !== value || expectedBytes !== void 0 && decoded.length !== expectedBytes) {
-    throw new Error("Invalid encrypted secret encoding");
-  }
-  return decoded;
-}
-function assertEnvelope(value) {
-  if (!value || typeof value !== "object") throw new Error("Invalid encrypted secret envelope");
-  const envelope = value;
-  if (envelope.schemaVersion !== 1 || envelope.algorithm !== "aes-256-gcm" || !envelope.kdf || envelope.kdf.name !== "scrypt" || envelope.kdf.N !== SCRYPT_N || envelope.kdf.r !== SCRYPT_R || envelope.kdf.p !== SCRYPT_P || envelope.kdf.keyLength !== KEY_LENGTH) {
-    throw new Error("Unsupported encrypted secret envelope");
-  }
-  decodeBase643(envelope.kdf.salt, 16);
-  decodeBase643(envelope.iv, 12);
-  decodeBase643(envelope.tag, 16);
-  decodeBase643(envelope.ciphertext);
-  return envelope;
-}
+
+// src/secrets/plaintext-file.ts
+import { createHash as createHash7 } from "node:crypto";
+import path9 from "node:path";
 function credentialReference(profile) {
-  return { type: "encrypted-file", id: `credentials:${validateProfileName(profile)}` };
+  return { type: "plaintext-file", id: `credentials:${validateProfileName(profile)}` };
 }
 function assertCredentialReference(reference) {
-  if (reference.type !== "encrypted-file" || !/^credentials:[a-z0-9][a-z0-9_-]{0,63}$/.test(reference.id)) {
-    throw new ShareNoteError("credential_missing", "Encrypted credential reference is invalid");
+  if (reference.type !== "plaintext-file" || !/^credentials:[a-z0-9][a-z0-9_-]{0,63}$/.test(reference.id)) {
+    throw new ShareNoteError("credential_missing", "Plaintext credential reference is invalid");
   }
 }
 function noteKeyReference(profile, recordId) {
@@ -39230,110 +39543,71 @@ function noteKeyReference(profile, recordId) {
   if (!/^note-[0-9a-f-]{36}$/.test(recordId)) {
     throw new ShareNoteError("invalid_request", "Record identifier is invalid");
   }
-  return `encrypted-file:notes:${profile}:${recordId}`;
+  return `plaintext-file:notes:${profile}:${recordId}`;
 }
 function assertNoteKeyReference(reference) {
-  if (!/^encrypted-file:notes:[a-z0-9][a-z0-9_-]{0,63}:note-[0-9a-f-]{36}$/.test(reference)) {
-    throw new ShareNoteError("credential_missing", "Encrypted note key reference is invalid");
+  if (!/^plaintext-file:notes:[a-z0-9][a-z0-9_-]{0,63}:note-[0-9a-f-]{36}$/.test(reference)) {
+    throw new ShareNoteError("credential_missing", "Plaintext note key reference is invalid");
   }
 }
-var EncryptedFileSecretStore = class {
-  constructor(dataDirectory, passwords) {
+var PlaintextFileSecretStore = class {
+  constructor(dataDirectory) {
     this.dataDirectory = dataDirectory;
-    this.passwords = passwords;
   }
   dataDirectory;
-  passwords;
   async storeCredential(profile, credential) {
     if (typeof credential.uid !== "string" || typeof credential.apiKey !== "string" || !credential.uid || !credential.apiKey) {
       throw new ShareNoteError("credential_missing", "Credential must contain non-empty uid and apiKey strings");
     }
     const reference = credentialReference(profile);
-    await this.writeSecret(credentialIdentityReference(reference), JSON.stringify(credential));
+    const file = {
+      schemaVersion: 1,
+      uid: credential.uid,
+      apiKey: credential.apiKey
+    };
+    await writeJsonAtomic(this.pathFor(credentialIdentityReference(reference)), file);
     return reference;
   }
   async readCredential(reference) {
     assertCredentialReference(reference);
-    const plaintext = await this.readSecret(credentialIdentityReference(reference));
-    try {
-      const credential = JSON.parse(plaintext);
-      if (typeof credential.uid !== "string" || typeof credential.apiKey !== "string" || !credential.uid || !credential.apiKey) {
-        throw new Error("Invalid credential");
-      }
-      return { uid: credential.uid, apiKey: credential.apiKey };
-    } catch {
-      throw new ShareNoteError("credential_missing", "Encrypted credential payload is invalid");
+    const value = await this.readPlaintextFile(credentialIdentityReference(reference));
+    if (!value || typeof value !== "object") {
+      throw new ShareNoteError("credential_missing", "Plaintext credential file is invalid");
     }
+    const credential = value;
+    if (credential.schemaVersion !== 1 || typeof credential.uid !== "string" || typeof credential.apiKey !== "string" || !credential.uid || !credential.apiKey) {
+      throw new ShareNoteError("credential_missing", "Plaintext credential file is invalid");
+    }
+    return { uid: credential.uid, apiKey: credential.apiKey };
   }
   async storeNoteKey(profile, recordId, key) {
     if (typeof key !== "string" || !key) throw new ShareNoteError("credential_missing", "Note key cannot be empty");
     const reference = noteKeyReference(profile, recordId);
-    await this.writeSecret(reference, key);
+    const file = { schemaVersion: 1, key };
+    await writeJsonAtomic(this.pathFor(reference), file);
     return reference;
   }
   async readNoteKey(reference) {
     assertNoteKeyReference(reference);
-    return this.readSecret(reference);
+    const value = await this.readPlaintextFile(reference);
+    if (!value || typeof value !== "object") {
+      throw new ShareNoteError("credential_missing", "Plaintext note key file is invalid");
+    }
+    const noteKey = value;
+    if (noteKey.schemaVersion !== 1 || typeof noteKey.key !== "string" || !noteKey.key) {
+      throw new ShareNoteError("credential_missing", "Plaintext note key file is invalid");
+    }
+    return noteKey.key;
   }
   pathFor(reference) {
-    const category = reference.startsWith("encrypted-file:credentials:") ? "credentials" : "note-keys";
-    const digest = createHash6("sha256").update(reference).digest("hex");
-    return path8.join(this.dataDirectory, "secrets", category, `${digest}.json`);
+    const category = reference.startsWith("plaintext-file:credentials:") ? "credentials" : "note-keys";
+    const digest = createHash7("sha256").update(reference).digest("hex");
+    return path9.join(this.dataDirectory, "secrets", category, `${digest}.json`);
   }
-  async writeSecret(reference, plaintext) {
-    const password = await this.passwords.getMasterPassword();
-    const salt = randomBytes2(16);
-    const iv = randomBytes2(12);
-    const key = await deriveKey(password, salt);
-    try {
-      const cipher = createCipheriv("aes-256-gcm", key, iv);
-      cipher.setAAD(Buffer.from(`${AAD_PREFIX}${reference}`, "utf8"));
-      const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-      const envelope = {
-        schemaVersion: 1,
-        algorithm: "aes-256-gcm",
-        kdf: {
-          name: "scrypt",
-          N: SCRYPT_N,
-          r: SCRYPT_R,
-          p: SCRYPT_P,
-          keyLength: KEY_LENGTH,
-          salt: salt.toString("base64")
-        },
-        iv: iv.toString("base64"),
-        tag: cipher.getAuthTag().toString("base64"),
-        ciphertext: ciphertext.toString("base64")
-      };
-      await writeJsonAtomic(this.pathFor(reference), envelope);
-    } finally {
-      key.fill(0);
-    }
-  }
-  async readSecret(reference) {
-    const envelopeValue = await readJsonFile(this.pathFor(reference)).catch(() => {
-      throw new ShareNoteError("credential_missing", "Encrypted secret was not found; rerun setup or republish the note");
+  async readPlaintextFile(reference) {
+    return readJsonFile(this.pathFor(reference)).catch(() => {
+      throw new ShareNoteError("credential_missing", "Plaintext secret was not found; rerun setup or republish the note");
     });
-    const password = await this.passwords.getMasterPassword();
-    let key;
-    try {
-      const envelope = assertEnvelope(envelopeValue);
-      const salt = decodeBase643(envelope.kdf.salt, 16);
-      const iv = decodeBase643(envelope.iv, 12);
-      const tag = decodeBase643(envelope.tag, 16);
-      const ciphertext = decodeBase643(envelope.ciphertext);
-      key = await deriveKey(password, salt);
-      const decipher = createDecipheriv("aes-256-gcm", key, iv);
-      decipher.setAAD(Buffer.from(`${AAD_PREFIX}${reference}`, "utf8"));
-      decipher.setAuthTag(tag);
-      return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
-    } catch {
-      throw new ShareNoteError(
-        "credential_missing",
-        `Encrypted secret could not be decrypted; check ${MASTER_PASSWORD_ENV_VAR} or rerun setup`
-      );
-    } finally {
-      key?.fill(0);
-    }
   }
 };
 
@@ -39344,7 +39618,7 @@ function usage() {
 async function requestFromArguments(arguments_) {
   const [action, flag, requestPath, ...rest] = arguments_;
   if (!action || flag !== "--request" || !requestPath || rest.length > 0) usage();
-  const resolved = path9.resolve(requestPath);
+  const resolved = path10.resolve(requestPath);
   const contents = await readFile4(resolved, "utf8");
   if (Buffer.byteLength(contents) > 1024 * 1024) {
     throw new ShareNoteError("invalid_request", "Request file exceeds 1 MiB");
@@ -39360,13 +39634,33 @@ async function main() {
   const dataDirectory = userDataDirectory();
   const application = new ShareNoteApplication(
     dataDirectory,
-    new EncryptedFileSecretStore(dataDirectory, new EnvironmentMasterPasswordProvider(process.env))
+    new PlaintextFileSecretStore(dataDirectory)
   );
   let result;
   switch (action) {
     case "setup":
       result = await application.setup(request);
       break;
+    case "setup-browser-start":
+      result = await application.setupBrowserStart(request);
+      break;
+    case "setup-browser-complete": {
+      const completeRequest = request;
+      if (completeRequest.cancel !== void 0 && typeof completeRequest.cancel !== "boolean") {
+        throw new ShareNoteError("invalid_request", "cancel must be a boolean");
+      }
+      try {
+        if (completeRequest.cancel !== true) {
+          if (!process.env[BROWSER_API_KEY_ENV_VAR]) {
+            process.env[BROWSER_API_KEY_ENV_VAR] = await readHiddenInput("Share Note API key: ");
+          }
+        }
+        result = await application.setupBrowserComplete(completeRequest);
+      } finally {
+        delete process.env[BROWSER_API_KEY_ENV_VAR];
+      }
+      break;
+    }
     case "doctor":
       result = await application.doctor(request);
       break;

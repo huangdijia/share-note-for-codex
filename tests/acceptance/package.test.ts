@@ -76,8 +76,8 @@ describe('M4 packaged plugin acceptance', () => {
     expect(await readdir(clean)).not.toContain('node_modules')
   })
 
-  it('uses the encrypted vault from the precompiled bundle', async () => {
-    const clean = await mkdtemp(path.join(tmpdir(), 'share-note-clean-vault-'))
+  it('uses private plaintext secret files from the precompiled bundle', async () => {
+    const clean = await mkdtemp(path.join(tmpdir(), 'share-note-clean-plaintext-store-'))
     temporaryDirectories.push(clean)
     const requestPath = path.join(clean, 'setup.json')
     const dataPath = path.join(clean, 'data')
@@ -93,18 +93,35 @@ describe('M4 packaged plugin acceptance', () => {
       env: {
         ...process.env,
         SHARE_NOTE_DATA_DIR: dataPath,
-        SHARE_NOTE_CREDENTIAL: JSON.stringify({ uid: 'bundle-user', apiKey: 'bundle-api-secret' }),
-        SHARE_NOTE_MASTER_PASSWORD: 'bundle-master-password'
+        SHARE_NOTE_CREDENTIAL: JSON.stringify({ uid: 'bundle-user', apiKey: 'bundle-api-secret' })
       }
     })
     expect(JSON.parse(stdout)).toMatchObject({ ok: true, action: 'setup', status: 'configured' })
     const persistedFiles = await filesBelow(dataPath)
     const persisted = (await Promise.all(persistedFiles.map(async (file) => readFile(file, 'utf8')))).join('\n')
-    expect(persisted).toContain('"algorithm": "aes-256-gcm"')
-    expect(persisted).toContain('"type": "encrypted-file"')
-    for (const secret of ['bundle-user', 'bundle-api-secret', 'bundle-master-password']) {
-      expect(persisted).not.toContain(secret)
+    expect(persisted).toContain('"type": "plaintext-file"')
+    expect(persisted).toContain('bundle-user')
+    expect(persisted).toContain('bundle-api-secret')
+    expect(persisted).not.toContain('SHARE_NOTE_MASTER_PASSWORD')
+    if (process.platform !== 'win32') {
+      for (const file of persistedFiles) expect((await stat(file)).mode & 0o777).toBe(0o600)
     }
+  })
+
+  it('ships browser-assisted setup rather than leaving it only in TypeScript source', async () => {
+    const bundled = await readFile(bundle, 'utf8')
+    for (const requiredImplementation of [
+      'setup-browser-start',
+      'setup-browser-complete',
+      'SHARE_NOTE_BROWSER_API_KEY',
+      'xdg-open',
+      'rundll32.exe',
+      '/v1/account/get-key'
+    ]) {
+      expect(bundled).toContain(requiredImplementation)
+    }
+    expect(bundled).not.toContain('obsidian://')
+    expect(bundled).not.toMatch(/clipboard\.read/i)
   })
 
   it('contains no Obsidian integration or resident-service implementation', async () => {

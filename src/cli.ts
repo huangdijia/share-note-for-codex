@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { ShareNoteApplication } from './app.js'
+import {
+  BROWSER_API_KEY_ENV_VAR,
+  ShareNoteApplication,
+  type SetupBrowserCompleteRequest
+} from './app.js'
 import { ShareNoteError, toSafeError } from './errors.js'
 import { userDataDirectory } from './platform/paths.js'
-import {
-  EncryptedFileSecretStore,
-  EnvironmentMasterPasswordProvider
-} from './secrets/encrypted-file.js'
+import { readHiddenInput } from './platform/hidden-input.js'
+import { PlaintextFileSecretStore } from './secrets/plaintext-file.js'
 
 function usage(): never {
   throw new ShareNoteError('invalid_request', 'Usage: share-note.mjs <action> --request <json-file>')
@@ -33,13 +35,33 @@ async function main(): Promise<void> {
   const dataDirectory = userDataDirectory()
   const application = new ShareNoteApplication(
     dataDirectory,
-    new EncryptedFileSecretStore(dataDirectory, new EnvironmentMasterPasswordProvider(process.env))
+    new PlaintextFileSecretStore(dataDirectory)
   )
   let result: unknown
   switch (action) {
     case 'setup':
       result = await application.setup(request as never)
       break
+    case 'setup-browser-start':
+      result = await application.setupBrowserStart(request as never)
+      break
+    case 'setup-browser-complete': {
+      const completeRequest = request as unknown as SetupBrowserCompleteRequest
+      if (completeRequest.cancel !== undefined && typeof completeRequest.cancel !== 'boolean') {
+        throw new ShareNoteError('invalid_request', 'cancel must be a boolean')
+      }
+      try {
+        if (completeRequest.cancel !== true) {
+          if (!process.env[BROWSER_API_KEY_ENV_VAR]) {
+            process.env[BROWSER_API_KEY_ENV_VAR] = await readHiddenInput('Share Note API key: ')
+          }
+        }
+        result = await application.setupBrowserComplete(completeRequest)
+      } finally {
+        delete process.env[BROWSER_API_KEY_ENV_VAR]
+      }
+      break
+    }
     case 'doctor':
       result = await application.doctor(request as never)
       break

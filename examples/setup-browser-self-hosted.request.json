@@ -1,0 +1,9 @@
+{
+  "profile": "work",
+  "service": "self-hosted",
+  "apiBaseUrl": "https://api.notes.example",
+  "webBaseUrl": "https://share.notes.example",
+  "confirmedApiOrigin": "https://api.notes.example",
+  "confirmedWebOrigin": "https://share.notes.example",
+  "allowedSourceRoots": ["/absolute/path/to/project/docs"]
+}

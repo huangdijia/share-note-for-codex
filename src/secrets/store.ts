@@ -13,7 +13,7 @@ export class MemorySecretStore implements SecretStore {
 
   async storeCredential(profile: string, credential: ShareNoteCredential): Promise<CredentialReference> {
     const reference: CredentialReference = {
-      type: 'encrypted-file',
+      type: 'plaintext-file',
       id: `credentials:${profile}`
     }
     this.values.set(`${reference.type}:${reference.id}`, JSON.stringify(credential))
@@ -27,7 +27,7 @@ export class MemorySecretStore implements SecretStore {
   }
 
   async storeNoteKey(profile: string, recordId: string, key: string): Promise<string> {
-    const reference = `encrypted-file:notes:${profile}:${recordId}`
+    const reference = `plaintext-file:notes:${profile}:${recordId}`
     this.values.set(reference, key)
     return reference
   }

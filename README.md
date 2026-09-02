@@ -2,7 +2,7 @@
 
 Share Note for Codex is a local Codex plugin that previews, publishes, reads, updates, lists, and deletes Share Note pages through a bundled HTTP client. It does not install or call Obsidian, use Obsidian CLI/URI/vault state, start a resident service, or install dependencies at runtime.
 
-Version 0.1.0 targets Node.js 20+ on Windows, Linux, and macOS. Secrets are stored in a local encrypted vault backed only by Node.js standard cryptography; the client does not use macOS Keychain or any platform credential manager. The client writes only user-level state and treats the plugin installation as read-only.
+Version 0.1.0 targets Node.js 20+ on Windows, Linux, and macOS. API credentials and note keys are stored as plaintext JSON in the user-data directory with private file permissions; the client does not use a master password, macOS Keychain, or another platform credential manager. The client writes only user-level state and treats the plugin installation as read-only.
 
 ## What is delivered
 
@@ -12,7 +12,7 @@ Version 0.1.0 targets Node.js 20+ on Windows, Linux, and macOS. Secrets are stor
 - Repo-local marketplace at `.agents/plugins/marketplace.json`
 - Locked build dependencies, mock/contract tests, protocol fixtures, and security/acceptance documentation
 
-There is no MCP server, daemon, background sync, dynamic `npm install`, arbitrary webpage execution, user-attachment upload, or plaintext fallback.
+There is no MCP server, daemon, background sync, dynamic `npm install`, arbitrary webpage execution, or user-attachment upload. Local secret storage is intentionally plaintext; encrypted Share Note page bodies remain the only publication mode.
 
 ## Build and test
 
@@ -34,46 +34,55 @@ codex plugin add share-note@personal
 
 Start a new Codex conversation after install so the Skill is discovered. The repository marketplace is intentionally merged as one `AVAILABLE` / `ON_INSTALL` Productivity entry pointing to `./plugins/share-note`.
 
-## Secure first setup
+## First setup
 
-Copy `examples/setup.request.json` outside the plugin if needed and replace only non-secret service paths. Do not put UID or API key in that JSON.
+The recommended setup has two local steps. It keeps the generated UID, authorization URL, browser page, and API key out of request files and ordinary output.
 
-The vault master password must contain at least 16 characters. It is never saved by the plugin and must be supplied again for every new process that reads or writes a credential or note key.
+First create a non-secret request for the public service, then start browser setup:
 
-On Linux with Bash, use hidden input and process-scoped environment values:
+```json
+{
+  "profile": "public",
+  "service": "public",
+  "allowedSourceRoots": ["/absolute/path/to/project/docs"]
+}
+```
 
 ```bash
-read -r -p "Share Note UID: " SHARE_NOTE_UID
-read -r -s -p "Share Note API key: " SHARE_NOTE_API_KEY; printf '\n'
-export SHARE_NOTE_UID SHARE_NOTE_API_KEY
-export SHARE_NOTE_CREDENTIAL="$(node -e 'process.stdout.write(JSON.stringify({uid:process.env.SHARE_NOTE_UID,apiKey:process.env.SHARE_NOTE_API_KEY}))')"
-unset SHARE_NOTE_API_KEY SHARE_NOTE_UID
-read -r -s -p "Vault master password: " SHARE_NOTE_MASTER_PASSWORD; printf '\n'
-export SHARE_NOTE_MASTER_PASSWORD
-node /absolute/path/to/share-note.mjs setup --request /absolute/path/to/setup.request.json
-unset SHARE_NOTE_CREDENTIAL SHARE_NOTE_MASTER_PASSWORD
+node /absolute/path/to/share-note.mjs setup-browser-start --request /absolute/path/to/public-browser-start.json
 ```
 
-On Windows PowerShell, use `Read-Host -AsSecureString` and clear the process environment after setup:
+The client creates a cryptographically random UID in its private, short-lived pending state and opens the exact `https://api.note.sx/v1/account/get-key` authorization route in the system default browser. Complete the service's normal human verification there. The client does not inspect browser DOM, browser logs, redirects, or the clipboard, and does not register an Obsidian URI handler.
 
-```powershell
-function ConvertTo-PlainText([Security.SecureString]$Value) {
-  $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Value)
-  try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer) }
-  finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
+Then use a second request containing only the profile:
+
+```json
+{ "profile": "public" }
+```
+
+```bash
+node /absolute/path/to/share-note.mjs setup-browser-complete --request /absolute/path/to/browser-complete.json
+```
+
+`setup-browser-complete` prompts in the local TTY for the displayed API key without echoing it. The key does not enter the request file, arguments, JSON result, logs, or persisted profile; after setup it is deliberately written as plaintext to a private `0600` file in the user-data directory. To abandon a pending setup, use `{ "profile": "public", "cancel": true }`; this deletes it without prompting.
+
+For a self-hosted instance, the user must deliberately type and confirm both origins independently. They may be equal, but neither is inferred or substituted:
+
+```json
+{
+  "profile": "work",
+  "service": "self-hosted",
+  "apiBaseUrl": "https://api.notes.example",
+  "webBaseUrl": "https://share.notes.example",
+  "confirmedApiOrigin": "https://api.notes.example",
+  "confirmedWebOrigin": "https://share.notes.example",
+  "allowedSourceRoots": ["/absolute/path/to/project/docs"]
 }
-$uid = Read-Host "Share Note UID"
-$apiKey = ConvertTo-PlainText (Read-Host "Share Note API key" -AsSecureString)
-$masterPassword = ConvertTo-PlainText (Read-Host "Vault master password" -AsSecureString)
-$env:SHARE_NOTE_CREDENTIAL = @{ uid = $uid; apiKey = $apiKey } | ConvertTo-Json -Compress
-$env:SHARE_NOTE_MASTER_PASSWORD = $masterPassword
-node C:\absolute\path\to\share-note.mjs setup --request C:\absolute\path\to\setup.request.json
-Remove-Item Env:\SHARE_NOTE_CREDENTIAL -ErrorAction SilentlyContinue
-Remove-Item Env:\SHARE_NOTE_MASTER_PASSWORD -ErrorAction SilentlyContinue
-$uid = $apiKey = $masterPassword = $null
 ```
 
-The setup process encrypts the credential with scrypt and AES-256-GCM, deletes both imported environment entries from its in-process environment, and writes only an encrypted-file reference to the profile. It does not register, rotate, or display a key. Users obtain credentials through the service's legitimate flow.
+The confirmation fields must exactly equal the normalized origins. A browser launch is bound to that API origin; a failed launch, wrong key, doctor failure, or unsupported platform never switches to the public service. Pending setup expires after ten minutes (configurable only from 60 to 1,800 seconds) and is removed when it is completed, cancelled, or next accessed after expiry.
+
+The existing `setup` action remains available to import a credential already obtained through a legitimate flow. Its request still contains only non-secret paths and the name of a process-scoped credential environment variable; do not put a UID or API key in a request file.
 
 Then run doctor with a small JSON request containing only the profile. Doctor sends an authenticated empty `check-files` request and never creates a note.
 
@@ -85,9 +94,9 @@ Every invocation has this shape:
 node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/request.json
 ```
 
-Supported actions are `setup`, `doctor`, `preview`, `publish`, `read`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, and explicit write authorization—not secrets or note bodies.
+Supported actions are `setup`, `setup-browser-start`, `setup-browser-complete`, `doctor`, `preview`, `publish`, `read`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, service origins, and explicit write authorization—not secrets, browser-returned keys, or note bodies.
 
-Set `SHARE_NOTE_MASTER_PASSWORD` immediately before `doctor`, `publish`, `update`, `delete`, or `read` by local record ID, then remove it from the shell environment. `setup` also requires it. `preview`, `list`, and `read` with a complete URL do not access the vault.
+No master-password environment variable is required. Actions that need an API credential or note key read it directly from the private plaintext files in the user-data directory.
 
 Publishing and updating always require a fresh preview and exact hash-bound authorization. Encrypted publication is the only write mode. The client persists a note key reference and pending operation before the first create request, never blindly retries ambiguous writes, and reports one of `verified`, `submitted_unverified`, `unknown`, `failed`, `blocked`, or `already_absent`.
 
@@ -101,9 +110,9 @@ The default user-data directory is:
 - Linux: `$XDG_DATA_HOME/codex-share-note/`, or `~/.local/share/codex-share-note/`
 - macOS: `~/Library/Application Support/codex-share-note/`
 
-Profiles, previews, operations, locks, records, and the encrypted credential/note-key vault live there. Each secret uses a random salt and IV, scrypt (`N=32768`, `r=8`, `p=1`) and AES-256-GCM with reference-bound authenticated data. Files are created privately and atomically; Windows also relies on the current user's data-directory ACL because POSIX modes are not available there. `SHARE_NOTE_DATA_DIR` changes the whole user-data location for isolated tests and controlled environments; it does not disable encryption.
+Profiles, previews, operations, locks, records, short-lived pending browser setups, and plaintext credential/note-key files live there. Files and directories are created atomically with `0600` and `0700` permissions on POSIX systems; Windows relies on the current user's data-directory ACL because POSIX modes are not available there. `SHARE_NOTE_DATA_DIR` changes the whole user-data location for isolated tests and controlled environments.
 
-The master password is intentionally unrecoverable. Losing it requires rerunning setup and republishing or recovering note keys from complete share URLs retained elsewhere. Existing schema-v1 profiles that referenced macOS Keychain are not imported or read; rerun setup to create a schema-v2 encrypted-vault profile. The plugin leaves any old Keychain entries untouched.
+This design provides no encryption at rest: any process or user that can read the data directory can recover the API credential and stored note keys. Existing schema-v1 Keychain and schema-v2 encrypted-vault profiles are not imported or read; rerun setup to create a schema-v3 plaintext-file profile. Old external Keychain entries and encrypted files are left untouched.
 
 ## Protocol and test status
 
