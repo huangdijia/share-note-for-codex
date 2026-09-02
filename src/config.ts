@@ -5,13 +5,12 @@ import { ShareNoteError } from './errors.js'
 import { readJsonFile, writeJsonAtomic } from './state/atomic.js'
 
 export interface CredentialReference {
-  type: 'macos-keychain'
-  service: string
-  account: string
+  type: 'plaintext-file'
+  id: string
 }
 
 export interface ProfileConfig {
-  schemaVersion: 1
+  schemaVersion: 3
   name: string
   apiBaseUrl: string
   webBaseUrl: string
@@ -90,7 +89,7 @@ export async function buildProfileConfig(
     throw new ShareNoteError('invalid_request', 'maxResponseBytes is outside the supported range')
   }
   return {
-    schemaVersion: 1,
+    schemaVersion: 3,
     name: validateProfileName(input.profile),
     apiBaseUrl: normalizeBaseUrl(input.apiBaseUrl, allowInsecureLoopback),
     webBaseUrl: normalizeBaseUrl(input.webBaseUrl, allowInsecureLoopback),
@@ -110,7 +109,7 @@ function assertProfile(value: unknown, expectedName: string): ProfileConfig {
   if (!value || typeof value !== 'object') throw new ShareNoteError('configuration_missing', 'Profile is invalid')
   const profile = value as Partial<ProfileConfig>
   if (
-    profile.schemaVersion !== 1 ||
+    profile.schemaVersion !== 3 ||
     profile.name !== expectedName ||
     typeof profile.apiBaseUrl !== 'string' ||
     typeof profile.webBaseUrl !== 'string' ||
@@ -120,11 +119,17 @@ function assertProfile(value: unknown, expectedName: string): ProfileConfig {
     profile.allowUnencryptedPublish !== false ||
     !Array.isArray(profile.allowedSourceRoots) ||
     !profile.credentialRef ||
-    profile.credentialRef.type !== 'macos-keychain'
+    profile.credentialRef.type !== 'plaintext-file' ||
+    typeof profile.credentialRef.id !== 'string' ||
+    profile.credentialRef.id !== `credentials:${expectedName}`
   ) {
     throw new ShareNoteError('configuration_missing', 'Profile schema or security policy is invalid')
   }
   return profile as ProfileConfig
+}
+
+export function credentialIdentityReference(reference: CredentialReference): string {
+  return `${reference.type}:${reference.id}`
 }
 
 export class ConfigStore {

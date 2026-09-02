@@ -5,10 +5,17 @@ export const PROTOCOL_PROFILE = {
   chunkSizeUtf16: 2_000,
   auth: 'sha256(nonce + apiKey)',
   routes: {
+    authorization: '/v1/account/get-key',
     doctor: '/v1/file/check-files',
     create: '/v1/file/create-note',
     delete: '/v1/file/delete'
   }
+} as const
+
+export const PUBLIC_SHARE_NOTE_SERVICE = {
+  protocolProfile: PROTOCOL_PROFILE.id,
+  apiBaseUrl: 'https://api.note.sx',
+  webBaseUrl: 'https://share.note.sx'
 } as const
 
 export type ProtocolProfile = typeof PROTOCOL_PROFILE

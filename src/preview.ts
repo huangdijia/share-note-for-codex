@@ -9,14 +9,18 @@ import { renderDocument, type SourceFormat } from './render/renderer.js'
 
 export interface PreviewRequest {
   sourcePath: string
-  workspaceRoot: string
+  projectRoot: string
   format?: SourceFormat
 }
 
 export interface PreviewMetadata {
-  schemaVersion: 1
+  schemaVersion: 2
   previewId: string
   profile: string
+  apiOrigin: string
+  webOrigin: string
+  projectRoot: string
+  projectBindingHash: string
   sourcePath: string
   sourceRealPath: string
   sourceHash: string
@@ -31,6 +35,10 @@ export interface PreviewResult extends BaseResult {
   action: 'preview'
   previewId: string
   previewPath: string
+  profile: string
+  apiOrigin: string
+  webOrigin: string
+  projectBindingHash: string
   sourcePath: string
   sourceHash: string
   contentHash: string
@@ -49,11 +57,12 @@ function inferFormat(filePath: string, requested?: SourceFormat): SourceFormat {
 export async function createPreview(
   dataDirectory: string,
   profile: ProfileConfig,
-  request: PreviewRequest
+  request: PreviewRequest,
+  projectBindingHash: string
 ): Promise<PreviewResult> {
   const source = await readSafeSource(
     request.sourcePath,
-    request.workspaceRoot,
+    request.projectRoot,
     profile.allowedSourceRoots,
     profile.maxSourceBytes
   )
@@ -66,10 +75,14 @@ export async function createPreview(
   await writeFile(previewPath, rendered.documentHtml, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
   await chmod(previewPath, 0o600)
   const metadata: PreviewMetadata = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     previewId,
     profile: profile.name,
-    sourcePath: source.requestedPath,
+    apiOrigin: new URL(profile.apiBaseUrl).origin,
+    webOrigin: new URL(profile.webBaseUrl).origin,
+    projectRoot: request.projectRoot,
+    projectBindingHash,
+    sourcePath: source.projectRelativePath,
     sourceRealPath: source.realPath,
     sourceHash: source.sourceHash,
     contentHash: rendered.contentHash,
@@ -85,7 +98,11 @@ export async function createPreview(
     status: rendered.publishable ? 'previewed' : 'blocked',
     previewId,
     previewPath,
-    sourcePath: source.realPath,
+    profile: profile.name,
+    apiOrigin: metadata.apiOrigin,
+    webOrigin: metadata.webOrigin,
+    projectBindingHash,
+    sourcePath: source.projectRelativePath,
     sourceHash: source.sourceHash,
     contentHash: rendered.contentHash,
     title: rendered.title,
@@ -106,6 +123,11 @@ export async function loadPreview(dataDirectory: string, previewId: string): Pro
     path.join(dataDirectory, 'previews', `${previewId}.json`),
     'utf8'
   )) as PreviewMetadata
-  if (value.schemaVersion !== 1 || value.previewId !== previewId) throw new Error('Invalid preview metadata')
+  if (
+    value.schemaVersion !== 2 ||
+    value.previewId !== previewId ||
+    typeof value.projectRoot !== 'string' ||
+    typeof value.projectBindingHash !== 'string'
+  ) throw new Error('Invalid preview metadata')
   return value
 }

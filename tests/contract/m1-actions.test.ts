@@ -48,6 +48,7 @@ describe('M1 setup, doctor, preview and read', () => {
       allowInsecureLoopback: true,
       credentialEnvVar: 'MOCK_SHARE_NOTE_CREDENTIAL'
     })
+    await application.configureProject({ projectRoot: workspace, profile: 'mock' })
   }
 
   async function createRemote(template: NoteTemplate): Promise<string> {
@@ -101,11 +102,17 @@ describe('M1 setup, doctor, preview and read', () => {
     await writeFile(sourcePath, '# 报告 🚀\n\n|列|值|\n|-|-|\n|中文|ok|\n\n```ts\nconst x = 1\n```\n')
     const before = server.requestLog.length
     const result = await application.preview({
-      profile: 'mock',
-      sourcePath,
-      workspaceRoot: workspace
+      sourcePath: 'report.md',
+      projectRoot: workspace
     })
-    expect(result).toMatchObject({ status: 'previewed', publishable: true, title: '报告 🚀' })
+    expect(result).toMatchObject({
+      status: 'previewed',
+      publishable: true,
+      title: '报告 🚀',
+      profile: 'mock',
+      sourcePath: 'report.md'
+    })
+    expect(result.projectBindingHash).toMatch(/^[a-f0-9]{64}$/)
     const preview = await readFile(result.previewPath, 'utf8')
     expect(preview).toContain('<table>')
     expect(preview).toContain('const x = 1')
@@ -117,9 +124,8 @@ describe('M1 setup, doctor, preview and read', () => {
     const sourcePath = path.join(workspace, 'unsafe.md')
     await writeFile(sourcePath, '# Safe\n\n<script>steal()</script>\n\n![secret](private.png)')
     const result = await application.preview({
-      profile: 'mock',
-      sourcePath,
-      workspaceRoot: workspace
+      sourcePath: 'unsafe.md',
+      projectRoot: workspace
     })
     expect(result).toMatchObject({ status: 'blocked', publishable: false })
     expect(result.resources).toContain('private.png')
@@ -137,9 +143,8 @@ describe('M1 setup, doctor, preview and read', () => {
       await writeFile(target, '# secret')
       await symlink(target, link)
       await expect(application.preview({
-        profile: 'mock',
-        sourcePath: link,
-        workspaceRoot: workspace
+        sourcePath: 'escape.md',
+        projectRoot: workspace
       })).rejects.toMatchObject({ code: 'source_blocked' })
     } finally {
       await rm(outside, { recursive: true, force: true })
@@ -160,7 +165,7 @@ describe('M1 setup, doctor, preview and read', () => {
       content: JSON.stringify(encrypted.payload),
       mathJax: false
     })
-    const result = await application.read({ profile: 'mock', url: `${url}#${encrypted.key}` })
+    const result = await application.read({ projectRoot: workspace, url: `${url}#${encrypted.key}` })
     expect(result).toMatchObject({ status: 'verified', encrypted: true, title: 'Remote 🚀' })
     expect(result.content).toContain('Hello 世界')
     expect(result.content).not.toContain('sendSecret')
@@ -173,13 +178,13 @@ describe('M1 setup, doctor, preview and read', () => {
     const encryptedUrl = await createRemote({
       width: '', elements: [], encrypted: true, content: JSON.stringify(encrypted.payload), mathJax: false
     })
-    await expect(application.read({ profile: 'mock', url: `${encryptedUrl}#bad-key` }))
+    await expect(application.read({ projectRoot: workspace, url: `${encryptedUrl}#bad-key` }))
       .rejects.toMatchObject({ code: 'credential_missing' })
 
     const unknownUrl = await createRemote({
       width: '', elements: [], encrypted: true, content: JSON.stringify({ data: 'future' }), mathJax: false
     })
-    await expect(application.read({ profile: 'mock', url: `${unknownUrl}#anything` }))
+    await expect(application.read({ projectRoot: workspace, url: `${unknownUrl}#anything` }))
       .rejects.toMatchObject({ code: 'protocol_error' })
   })
 
@@ -188,7 +193,7 @@ describe('M1 setup, doctor, preview and read', () => {
     await mkdir(path.join(workspace, 'docs'))
     const sourcePath = path.join(workspace, 'docs', 'note.md')
     await writeFile(sourcePath, '# Note')
-    const result = await application.preview({ profile: 'mock', sourcePath, workspaceRoot: workspace })
+    const result = await application.preview({ projectRoot: workspace, sourcePath: 'docs/note.md' })
     expect(result.previewPath.startsWith(dataDirectory + path.sep)).toBe(true)
   })
 })

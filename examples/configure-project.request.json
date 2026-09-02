@@ -1,0 +1,5 @@
+{
+  "projectRoot": "/absolute/path/to/project",
+  "profile": "default",
+  "importLegacyRecords": false
+}

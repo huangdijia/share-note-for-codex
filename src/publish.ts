@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import type { ProfileConfig } from './config.js'
+import { credentialIdentityReference, type ProfileConfig } from './config.js'
 import { encryptModern } from './crypto/codecs.js'
 import { ShareNoteError } from './errors.js'
 import { ShareNoteHttpClient, type FetchImplementation } from './http/client.js'
@@ -9,20 +9,21 @@ import { decodeSharePage } from './read/page.js'
 import type { BaseResult } from './result.js'
 import type { SecretStore } from './secrets/store.js'
 import { readSafeSource } from './source.js'
-import { StateStore, type OperationRecord, type ShareRecord } from './state/store.js'
+import { type ProjectStore } from './project.js'
+import type { OperationRecord, ShareRecord } from './state/store.js'
 
 export interface PublishAuthorization {
   granted: true
   action: 'publish'
   profile: string
+  projectBindingHash: string
   contentHash: string
   encryption: 'encrypted'
 }
 
 export interface PublishRequest {
-  profile: string
+  projectRoot: string
   previewId: string
-  workspaceRoot: string
   expectedContentHash: string
   authorization: PublishAuthorization
   returnShareUrl?: boolean
@@ -66,12 +67,13 @@ export function validateRemoteUrl(profile: ProfileConfig, value: string): { base
   return { baseUrl: url.toString(), filename }
 }
 
-function authorized(request: PublishRequest): void {
+function authorized(request: PublishRequest, profile: ProfileConfig, projectBindingHash: string): void {
   const authorization = request.authorization
   if (
     authorization?.granted !== true ||
     authorization.action !== 'publish' ||
-    authorization.profile !== request.profile ||
+    authorization.profile !== profile.name ||
+    authorization.projectBindingHash !== projectBindingHash ||
     authorization.contentHash !== request.expectedContentHash ||
     authorization.encryption !== 'encrypted'
   ) {
@@ -82,21 +84,28 @@ function authorized(request: PublishRequest): void {
 export async function publishPreview(
   dataDirectory: string,
   profile: ProfileConfig,
+  project: ProjectStore,
+  projectBindingHash: string,
   secrets: SecretStore,
   request: PublishRequest,
   fetchImplementation: FetchImplementation = fetch
 ): Promise<PublishResult> {
-  authorized(request)
+  authorized(request, profile, projectBindingHash)
   const preview = await loadPreview(dataDirectory, request.previewId)
-  if (preview.profile !== profile.name || preview.contentHash !== request.expectedContentHash) {
+  if (
+    preview.profile !== profile.name ||
+    preview.projectRoot !== project.projectRoot ||
+    preview.projectBindingHash !== projectBindingHash ||
+    preview.contentHash !== request.expectedContentHash
+  ) {
     throw new ShareNoteError('content_blocked', 'Preview does not match the requested profile or content hash')
   }
   if (!preview.publishable) {
     throw new ShareNoteError('content_blocked', 'Preview contains blocked resources or sensitive content')
   }
   const currentSource = await readSafeSource(
-    preview.sourceRealPath,
-    request.workspaceRoot,
+    preview.sourcePath,
+    project.projectRoot,
     profile.allowedSourceRoots,
     profile.maxSourceBytes
   )
@@ -104,14 +113,13 @@ export async function publishPreview(
     throw new ShareNoteError('content_blocked', 'Source changed after preview; create a new preview before publishing')
   }
 
-  const state = new StateStore(dataDirectory)
   const recordId = `note-${randomUUID()}`
   const operationId = `op-${randomUUID()}`
   const encrypted = await encryptModern(JSON.stringify({
     content: preview.bodyHtml,
     basename: preview.title
   }))
-  const noteKeyRef = await secrets.storeNoteKey(profile.name, recordId, encrypted.key)
+  const noteKeyRef = await project.storeNoteKey(recordId, encrypted.key)
   const now = new Date().toISOString()
   const operation: OperationRecord = {
     schemaVersion: 1,
@@ -126,7 +134,7 @@ export async function publishPreview(
     createdAt: now,
     updatedAt: now
   }
-  await state.writeOperation(operation)
+  await project.writeOperation(operation)
 
   const template: NoteTemplate = {
     width: '',
@@ -149,7 +157,7 @@ export async function publishPreview(
     operation.status = 'unknown'
     operation.updatedAt = new Date().toISOString()
     operation.diagnostic = 'Create request had no trustworthy response; it was not retried.'
-    await state.writeOperation(operation)
+    await project.writeOperation(operation)
     return {
       ok: false,
       action: 'publish',
@@ -165,7 +173,7 @@ export async function publishPreview(
     operation.status = 'failed'
     operation.updatedAt = new Date().toISOString()
     operation.diagnostic = 'Create response did not contain a URL.'
-    await state.writeOperation(operation)
+    await project.writeOperation(operation)
     throw new ShareNoteError('protocol_error', 'Create response did not contain a share URL')
   }
   const remote = validateRemoteUrl(profile, response.url)
@@ -178,8 +186,8 @@ export async function publishPreview(
     profile: profile.name,
     apiOrigin: new URL(profile.apiBaseUrl).origin,
     webOrigin: new URL(profile.webBaseUrl).origin,
-    identityRef: `${profile.credentialRef.service}:${profile.credentialRef.account}`,
-    sourcePath: preview.sourceRealPath,
+    identityRef: credentialIdentityReference(profile.credentialRef),
+    sourcePath: preview.sourcePath,
     remoteFilename: remote.filename,
     shareUrl: remote.baseUrl,
     noteKeyRef,
@@ -211,8 +219,8 @@ export async function publishPreview(
   if (!verified) {
     warnings.push('The returned page did not pass title and sanitized-content hash verification.')
   }
-  await state.saveRecord(record)
-  await state.writeOperation(operation)
+  await project.saveRecord(record)
+  await project.writeOperation(operation)
   return {
     ok: verified,
     action: 'publish',

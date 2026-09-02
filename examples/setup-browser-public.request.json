@@ -1,0 +1,5 @@
+{
+  "profile": "public",
+  "service": "public",
+  "allowedSourceRoots": ["/absolute/path/to/project/docs"]
+}
