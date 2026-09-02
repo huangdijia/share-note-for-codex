@@ -14,19 +14,21 @@ import { decodeSharePage } from './read/page.js'
 import type { BaseResult } from './result.js'
 import type { SecretStore } from './secrets/store.js'
 import { readSafeSource } from './source.js'
+import type { ProjectStore } from './project.js'
 import { withLocalLock } from './state/lock.js'
-import { StateStore, type OperationRecord, type ShareRecord } from './state/store.js'
+import type { OperationRecord, ShareRecord } from './state/store.js'
 import { sha1Hex, sha256Hex, validateRemoteUrl } from './publish.js'
 
 export interface UpdateRequest {
-  profile: string
+  projectRoot: string
   recordId: string
   previewId: string
-  workspaceRoot: string
   expectedContentHash: string
   authorization: {
     granted: true
     action: 'update'
+    profile: string
+    projectBindingHash: string
     recordId: string
     contentHash: string
     encryption: 'encrypted'
@@ -35,7 +37,7 @@ export interface UpdateRequest {
 }
 
 export interface DeleteRequest {
-  profile: string
+  projectRoot: string
   recordId: string
   authorization: {
     granted: true
@@ -47,7 +49,7 @@ export interface DeleteRequest {
 }
 
 export interface ListRequest {
-  profile?: string
+  projectRoot: string
   query?: string
 }
 
@@ -66,11 +68,17 @@ function assertRecordBinding(record: ShareRecord, profile: ProfileConfig): void 
   }
 }
 
-function validateUpdateAuthorization(request: UpdateRequest): void {
+function validateUpdateAuthorization(
+  request: UpdateRequest,
+  profile: ProfileConfig,
+  projectBindingHash: string
+): void {
   const authorization = request.authorization
   if (
     authorization?.granted !== true ||
     authorization.action !== 'update' ||
+    authorization.profile !== profile.name ||
+    authorization.projectBindingHash !== projectBindingHash ||
     authorization.recordId !== request.recordId ||
     authorization.contentHash !== request.expectedContentHash ||
     authorization.encryption !== 'encrypted'
@@ -106,6 +114,8 @@ async function readAndCompare(
 export async function updateRecord(
   dataDirectory: string,
   profile: ProfileConfig,
+  project: ProjectStore,
+  projectBindingHash: string,
   secrets: SecretStore,
   request: UpdateRequest,
   fetchImplementation: FetchImplementation = fetch
@@ -116,22 +126,23 @@ export async function updateRecord(
   verification: { fetched: boolean; decrypted: boolean; contentMatched: boolean }
   shareUrl?: string
 }> {
-  validateUpdateAuthorization(request)
-  return withLocalLock(dataDirectory, `record:${request.recordId}`, async () => {
-    const state = new StateStore(dataDirectory)
-    const record = await state.getRecord(request.recordId)
+  validateUpdateAuthorization(request, profile, projectBindingHash)
+  return withLocalLock(dataDirectory, `project:${project.projectRoot}:record:${request.recordId}`, async () => {
+    const record = await project.getRecord(request.recordId)
     assertRecordBinding(record, profile)
     const preview = await loadPreview(dataDirectory, request.previewId)
     if (
       preview.profile !== profile.name ||
+      preview.projectRoot !== project.projectRoot ||
+      preview.projectBindingHash !== projectBindingHash ||
       preview.contentHash !== request.expectedContentHash ||
       !preview.publishable
     ) {
       throw new ShareNoteError('content_blocked', 'Update preview is blocked or does not match the request')
     }
     const source = await readSafeSource(
-      preview.sourceRealPath,
-      request.workspaceRoot,
+      preview.sourcePath,
+      project.projectRoot,
       profile.allowedSourceRoots,
       profile.maxSourceBytes
     )
@@ -139,7 +150,7 @@ export async function updateRecord(
       throw new ShareNoteError('content_blocked', 'Source changed after preview; create a new preview before updating')
     }
     const credential = await secrets.readCredential(profile.credentialRef)
-    const key = await secrets.readNoteKey(record.noteKeyRef)
+    const key = await project.readNoteKey(record.noteKeyRef)
     const client = new ShareNoteHttpClient(profile, credential, fetchImplementation)
     const baseline = await readAndCompare(client, record, key)
     if (baseline === 'absent') {
@@ -182,7 +193,7 @@ export async function updateRecord(
       createdAt: now,
       updatedAt: now
     }
-    await state.writeOperation(operation)
+    await project.writeOperation(operation)
     let response: { url?: string }
     try {
       response = await client.postJson<{ url?: string }>(PROTOCOL_PROFILE.routes.create, body)
@@ -190,7 +201,7 @@ export async function updateRecord(
       operation.status = 'unknown'
       operation.updatedAt = new Date().toISOString()
       operation.diagnostic = 'Update request had no trustworthy response; it was not retried.'
-      await state.writeOperation(operation)
+      await project.writeOperation(operation)
       return {
         ok: false,
         action: 'update' as const,
@@ -208,7 +219,7 @@ export async function updateRecord(
       operation.status = 'failed'
       operation.updatedAt = new Date().toISOString()
       operation.diagnostic = 'Server returned a different target URL.'
-      await state.writeOperation(operation)
+      await project.writeOperation(operation)
       return {
         ok: false,
         action: 'update' as const,
@@ -238,13 +249,13 @@ export async function updateRecord(
     record.status = operation.status
     record.updatedAt = operation.updatedAt
     if (verified) {
-      record.sourcePath = preview.sourceRealPath
+      record.sourcePath = preview.sourcePath
       record.sourceHash = preview.sourceHash
       record.contentHash = preview.contentHash
       record.title = preview.title
     }
-    await state.saveRecord(record)
-    await state.writeOperation(operation)
+    await project.saveRecord(record)
+    await project.writeOperation(operation)
     return {
       ok: verified,
       action: 'update' as const,
@@ -265,6 +276,7 @@ async function delay(milliseconds: number): Promise<void> {
 export async function deleteRecord(
   dataDirectory: string,
   profile: ProfileConfig,
+  project: ProjectStore,
   secrets: SecretStore,
   request: DeleteRequest,
   fetchImplementation: FetchImplementation = fetch
@@ -277,11 +289,10 @@ export async function deleteRecord(
   sourceFilePreserved: true
 }> {
   validateDeleteAuthorization(request)
-  return withLocalLock(dataDirectory, `record:${request.recordId}`, async () => {
-    const state = new StateStore(dataDirectory)
-    const record = await state.getRecord(request.recordId)
+  return withLocalLock(dataDirectory, `project:${project.projectRoot}:record:${request.recordId}`, async () => {
+    const record = await project.getRecord(request.recordId)
     assertRecordBinding(record, profile)
-    const key = await secrets.readNoteKey(record.noteKeyRef)
+    const key = await project.readNoteKey(record.noteKeyRef)
     const credential = await secrets.readCredential(profile.credentialRef)
     const client = new ShareNoteHttpClient(profile, credential, fetchImplementation)
     const operationId = `op-${randomUUID()}`
@@ -303,10 +314,10 @@ export async function deleteRecord(
     }
     if (baseline === 'absent') {
       operation.status = 'already_absent'
-      await state.writeOperation(operation)
+      await project.writeOperation(operation)
       record.status = 'already_absent'
       record.updatedAt = new Date().toISOString()
-      await state.saveRecord(record)
+      await project.saveRecord(record)
       return {
         ok: true,
         action: 'delete' as const,
@@ -319,7 +330,7 @@ export async function deleteRecord(
         warnings: ['Remote target was already absent; no delete request was sent.']
       }
     }
-    await state.writeOperation(operation)
+    await project.writeOperation(operation)
     const body: DeleteNoteRequest = { filename: record.remoteFilename, filetype: 'html' }
     try {
       await client.postJson<{ success?: boolean }>(PROTOCOL_PROFILE.routes.delete, body)
@@ -327,7 +338,7 @@ export async function deleteRecord(
       operation.status = 'unknown'
       operation.updatedAt = new Date().toISOString()
       operation.diagnostic = 'Delete request had no trustworthy response and was not retried.'
-      await state.writeOperation(operation)
+      await project.writeOperation(operation)
       return {
         ok: false,
         action: 'delete' as const,
@@ -357,8 +368,8 @@ export async function deleteRecord(
     record.status = operation.status
     record.updatedAt = operation.updatedAt
     if (absent) record.deletedAt = operation.updatedAt
-    await state.saveRecord(record)
-    await state.writeOperation(operation)
+    await project.saveRecord(record)
+    await project.writeOperation(operation)
     return {
       ok: absent,
       action: 'delete' as const,
@@ -376,11 +387,11 @@ export async function deleteRecord(
 }
 
 export async function listLocalRecords(
-  dataDirectory: string,
+  project: ProjectStore,
   request: ListRequest
 ): Promise<BaseResult & {
   action: 'list'
-  scope: 'local'
+  scope: 'project'
   records: Array<{
     recordId: string
     profile: string
@@ -392,14 +403,13 @@ export async function listLocalRecords(
   }>
   pendingOperations: number
 }> {
-  const state = new StateStore(dataDirectory)
-  const records = await state.listRecords(request.profile, request.query)
-  const pendingOperations = (await state.listOperations('pending')).length
+  const records = await project.listRecords(request.query)
+  const pendingOperations = (await project.listOperations('pending')).length
   return {
     ok: true,
     action: 'list',
     status: 'verified',
-    scope: 'local',
+    scope: 'project',
     records: records.map((record) => ({
       recordId: record.recordId,
       profile: record.profile,
@@ -410,6 +420,6 @@ export async function listLocalRecords(
       updatedAt: record.updatedAt
     })),
     pendingOperations,
-    warnings: ['This is the plugin local registry, not a complete remote account inventory.']
+    warnings: ['This is the current project registry, not a complete remote account inventory.']
   }
 }

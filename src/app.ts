@@ -4,6 +4,7 @@ import { ShareNoteHttpClient } from './http/client.js'
 import {
   buildProfileConfig,
   ConfigStore,
+  type ProfileConfig,
   type ProfileSetupInput
 } from './config.js'
 import { ShareNoteError } from './errors.js'
@@ -22,6 +23,13 @@ import {
   type UpdateRequest
 } from './manage.js'
 import { StateStore } from './state/store.js'
+import {
+  createProjectBindingHash,
+  ProjectStore,
+  projectRelativePath,
+  sourceBelongsToProject,
+  type ProjectContext
+} from './project.js'
 import { openInSystemBrowser } from './platform/browser.js'
 import {
   PendingSetupStore,
@@ -67,6 +75,15 @@ const DEFAULT_BROWSER_SETUP_DEPENDENCIES: BrowserSetupDependencies = {
   openBrowser: openInSystemBrowser
 }
 
+function rejectLegacyProjectFields(request: object): void {
+  if ('profile' in request || 'workspaceRoot' in request) {
+    throw new ShareNoteError(
+      'invalid_request',
+      'Project record actions use projectRoot and the profile bound in .openai/share-note.json'
+    )
+  }
+}
+
 export function createBrowserSetupUid(): string {
   return randomBytes(32).toString('base64url')
 }
@@ -89,10 +106,16 @@ export interface DoctorRequest {
 }
 
 export interface ReadRequest {
-  profile: string
+  projectRoot: string
   url?: string
   recordId?: string
   outputFormat?: 'markdown' | 'html'
+}
+
+export interface ConfigureProjectRequest {
+  projectRoot: string
+  profile: string
+  importLegacyRecords?: boolean
 }
 
 export class ShareNoteApplication {
@@ -106,6 +129,84 @@ export class ShareNoteApplication {
     private readonly browserSetup: BrowserSetupDependencies = DEFAULT_BROWSER_SETUP_DEPENDENCIES
   ) {
     this.configs = new ConfigStore(dataDirectory)
+  }
+
+  private async projectContext(projectRoot: string): Promise<ProjectContext> {
+    const store = await ProjectStore.open(projectRoot, this.dataDirectory)
+    const manifest = await store.load()
+    const profile = await this.configs.load(manifest.profile)
+    return {
+      store,
+      manifest,
+      profile,
+      projectBindingHash: createProjectBindingHash(store.projectRoot, profile)
+    }
+  }
+
+  async configureProject(request: ConfigureProjectRequest): Promise<BaseResult & {
+    projectRoot: string
+    profile: string
+    importedRecords: number
+    importedOperations: number
+    migrationAvailable: number
+    unassociatedLegacyOperations: number
+  }> {
+    if (request.importLegacyRecords !== undefined && typeof request.importLegacyRecords !== 'boolean') {
+      throw new ShareNoteError('invalid_request', 'importLegacyRecords must be a boolean')
+    }
+    const profile = await this.configs.load(request.profile)
+    const project = await ProjectStore.open(request.projectRoot, this.dataDirectory)
+    await project.configure(profile.name)
+
+    const legacyState = new StateStore(this.dataDirectory)
+    const allLegacyRecords = await legacyState.listRecords(profile.name)
+    const legacyMembership = await Promise.all(allLegacyRecords.map(async (record) => ({
+      record,
+      belongs: await sourceBelongsToProject(project.projectRoot, record.sourcePath)
+    })))
+    const matchingRecords = legacyMembership.filter((item) => item.belongs).map((item) => item.record)
+    const allLegacyOperations = (await legacyState.listOperations()).filter((operation) => operation.profile === profile.name)
+    const knownLegacyRecordIds = new Set(allLegacyRecords.map((record) => record.recordId))
+    const unassociatedLegacyOperations = allLegacyOperations.filter(
+      (operation) => !knownLegacyRecordIds.has(operation.recordId)
+    ).length
+    let importedRecords = 0
+    let importedOperations = 0
+
+    if (request.importLegacyRecords === true && matchingRecords.length > 0) {
+      const matchingRecordIds = new Set(matchingRecords.map((record) => record.recordId))
+      const matchingOperations = allLegacyOperations.filter((operation) => matchingRecordIds.has(operation.recordId))
+      const keys = new Map<string, string>()
+      for (const record of matchingRecords) {
+        keys.set(record.recordId, await this.secrets.readNoteKey(record.noteKeyRef))
+      }
+      const projectRecords = await Promise.all(matchingRecords.map(async (record) => ({
+        ...record,
+        sourcePath: await projectRelativePath(project.projectRoot, record.sourcePath)
+      })))
+      await project.importLegacy(projectRecords, matchingOperations, keys)
+      importedRecords = projectRecords.length
+      importedOperations = matchingOperations.length
+    }
+
+    return {
+      ok: true,
+      action: 'configure-project',
+      status: 'configured',
+      projectRoot: project.projectRoot,
+      profile: profile.name,
+      importedRecords,
+      importedOperations,
+      migrationAvailable: matchingRecords.length,
+      unassociatedLegacyOperations,
+      warnings: [
+        'API credentials remain in the private user data directory.',
+        'Project note keys are plaintext and must remain excluded from version control.',
+        ...(unassociatedLegacyOperations > 0
+          ? ['Some legacy operations have no source record and could not be associated with this project.']
+          : [])
+      ]
+    }
   }
 
   async setupBrowserStart(request: SetupBrowserStartRequest): Promise<BaseResult & {
@@ -332,34 +433,62 @@ export class ShareNoteApplication {
     }
   }
 
-  async preview(request: PreviewRequest & { profile: string }) {
-    const profile = await this.configs.load(request.profile)
-    return createPreview(this.dataDirectory, profile, request)
+  async preview(request: PreviewRequest) {
+    rejectLegacyProjectFields(request)
+    const context = await this.projectContext(request.projectRoot)
+    return createPreview(
+      this.dataDirectory,
+      context.profile,
+      { ...request, projectRoot: context.store.projectRoot },
+      context.projectBindingHash
+    )
   }
 
   async publish(request: PublishRequest) {
-    const profile = await this.configs.load(request.profile)
+    rejectLegacyProjectFields(request)
+    const context = await this.projectContext(request.projectRoot)
     return publishPreview(
       this.dataDirectory,
-      profile,
+      context.profile,
+      context.store,
+      context.projectBindingHash,
       this.secrets,
-      request,
+      { ...request, projectRoot: context.store.projectRoot },
       this.fetchImplementation
     )
   }
 
   async update(request: UpdateRequest) {
-    const profile = await this.configs.load(request.profile)
-    return updateRecord(this.dataDirectory, profile, this.secrets, request, this.fetchImplementation)
+    rejectLegacyProjectFields(request)
+    const context = await this.projectContext(request.projectRoot)
+    return updateRecord(
+      this.dataDirectory,
+      context.profile,
+      context.store,
+      context.projectBindingHash,
+      this.secrets,
+      { ...request, projectRoot: context.store.projectRoot },
+      this.fetchImplementation
+    )
   }
 
   async delete(request: DeleteRequest) {
-    const profile = await this.configs.load(request.profile)
-    return deleteRecord(this.dataDirectory, profile, this.secrets, request, this.fetchImplementation)
+    rejectLegacyProjectFields(request)
+    const context = await this.projectContext(request.projectRoot)
+    return deleteRecord(
+      this.dataDirectory,
+      context.profile,
+      context.store,
+      this.secrets,
+      { ...request, projectRoot: context.store.projectRoot },
+      this.fetchImplementation
+    )
   }
 
   async list(request: ListRequest) {
-    return listLocalRecords(this.dataDirectory, request)
+    rejectLegacyProjectFields(request)
+    const context = await this.projectContext(request.projectRoot)
+    return listLocalRecords(context.store, { ...request, projectRoot: context.store.projectRoot })
   }
 
   async read(request: ReadRequest): Promise<BaseResult & {
@@ -369,12 +498,14 @@ export class ShareNoteApplication {
     encrypted: boolean
     codec?: string
   }> {
-    const profile = await this.configs.load(request.profile)
+    rejectLegacyProjectFields(request)
+    const context = await this.projectContext(request.projectRoot)
+    const profile = context.profile
     let requestedUrl = request.url
     if (request.recordId) {
-      const record = await new StateStore(this.dataDirectory).getRecord(request.recordId)
+      const record = await context.store.getRecord(request.recordId)
       if (record.profile !== profile.name) throw new ShareNoteError('content_blocked', 'Record is bound to a different profile')
-      const key = await this.secrets.readNoteKey(record.noteKeyRef)
+      const key = await context.store.readNoteKey(record.noteKeyRef)
       requestedUrl = `${record.shareUrl}#${key}`
     }
     if (!requestedUrl || (request.url && request.recordId)) {

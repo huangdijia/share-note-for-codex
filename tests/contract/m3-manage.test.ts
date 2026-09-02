@@ -6,7 +6,7 @@ import { ShareNoteApplication } from '../../src/app.js'
 import { createAuthHeaders } from '../../src/protocol/auth.js'
 import { PROTOCOL_PROFILE } from '../../src/protocol/profile.js'
 import { MemorySecretStore } from '../../src/secrets/store.js'
-import { StateStore } from '../../src/state/store.js'
+import { ProjectStore } from '../../src/project.js'
 import { MockShareNoteServer } from '../helpers/mock-share-note-server.js'
 
 describe('M3 update, list, delete and local locking', () => {
@@ -38,16 +38,17 @@ describe('M3 update, list, delete and local locking', () => {
       allowInsecureLoopback: true,
       credentialEnvVar: 'MOCK_CREDENTIAL'
     })
-    const preview = await application.preview({ profile: 'mock', sourcePath, workspaceRoot: workspace })
+    await application.configureProject({ projectRoot: workspace, profile: 'mock' })
+    const preview = await application.preview({ projectRoot: workspace, sourcePath: 'managed.md' })
     published = await application.publish({
-      profile: 'mock',
+      projectRoot: workspace,
       previewId: preview.previewId,
-      workspaceRoot: workspace,
       expectedContentHash: preview.contentHash,
       authorization: {
         granted: true,
         action: 'publish',
         profile: 'mock',
+        projectBindingHash: preview.projectBindingHash,
         contentHash: preview.contentHash,
         encryption: 'encrypted'
       },
@@ -65,19 +66,20 @@ describe('M3 update, list, delete and local locking', () => {
 
   async function nextPreview(body = 'Version two. 🚀') {
     await writeFile(sourcePath, `# Managed note\n\n${body}`)
-    return application.preview({ profile: 'mock', sourcePath, workspaceRoot: workspace })
+    return application.preview({ projectRoot: workspace, sourcePath: 'managed.md' })
   }
 
   function updateRequest(preview: Awaited<ReturnType<typeof nextPreview>>) {
     return {
-      profile: 'mock',
+      projectRoot: workspace,
       recordId: published.recordId,
       previewId: preview.previewId,
-      workspaceRoot: workspace,
       expectedContentHash: preview.contentHash,
       authorization: {
         granted: true as const,
         action: 'update' as const,
+        profile: 'mock',
+        projectBindingHash: preview.projectBindingHash,
         recordId: published.recordId,
         contentHash: preview.contentHash,
         encryption: 'encrypted' as const
@@ -93,7 +95,7 @@ describe('M3 update, list, delete and local locking', () => {
   }
 
   async function deleteDirectly(): Promise<void> {
-    const record = await new StateStore(dataDirectory).getRecord(published.recordId)
+    const record = await (await ProjectStore.open(workspace, dataDirectory)).getRecord(published.recordId)
     await fetch(server.apiBaseUrl + PROTOCOL_PROFILE.routes.delete, {
       method: 'POST',
       headers: {
@@ -139,7 +141,7 @@ describe('M3 update, list, delete and local locking', () => {
 
   it('lists only local records and exposes pending crash-recovery state', async () => {
     const now = new Date().toISOString()
-    await new StateStore(dataDirectory).writeOperation({
+    await (await ProjectStore.open(workspace, dataDirectory)).writeOperation({
       schemaVersion: 1,
       operationId: 'op-00000000-0000-4000-8000-000000000000',
       action: 'update',
@@ -150,23 +152,41 @@ describe('M3 update, list, delete and local locking', () => {
       createdAt: now,
       updatedAt: now
     })
-    const result = await application.list({ profile: 'mock' })
-    expect(result).toMatchObject({ scope: 'local', pendingOperations: 1 })
+    const result = await application.list({ projectRoot: workspace })
+    expect(result).toMatchObject({ scope: 'project', pendingOperations: 1 })
     expect(result.records).toHaveLength(1)
     expect(result.records[0]).not.toHaveProperty('noteKeyRef')
     expect(result.warnings.join(' ')).toContain('not a complete remote account inventory')
   })
 
   it('reads a managed encrypted note by local record ID', async () => {
-    const result = await application.read({ profile: 'mock', recordId: published.recordId })
+    const result = await application.read({ projectRoot: workspace, recordId: published.recordId })
     expect(result).toMatchObject({ status: 'verified', title: 'Managed note', encrypted: true })
     expect(result.content).toContain('Version one')
+  })
+
+  it('isolates records and keys between projects that share one profile', async () => {
+    const otherProject = await mkdtemp(path.join(tmpdir(), 'share-note-m3-other-project-'))
+    try {
+      await application.configureProject({ projectRoot: otherProject, profile: 'mock' })
+      await expect(application.list({ projectRoot: otherProject }))
+        .resolves.toMatchObject({ scope: 'project', records: [] })
+      await expect(application.read({ projectRoot: otherProject, recordId: published.recordId }))
+        .rejects.toMatchObject({ code: 'not_found' })
+      await expect(application.delete({
+        projectRoot: otherProject,
+        recordId: published.recordId,
+        authorization: { granted: true, action: 'delete', recordId: published.recordId }
+      })).rejects.toMatchObject({ code: 'not_found' })
+    } finally {
+      await rm(otherProject, { recursive: true, force: true })
+    }
   })
 
   it('does not report deletion when success=true but the page remains', async () => {
     server.setBehavior({ deleteKeepsPage: true })
     const result = await application.delete({
-      profile: 'mock',
+      projectRoot: workspace,
       recordId: published.recordId,
       authorization: { granted: true, action: 'delete', recordId: published.recordId },
       verificationAttempts: 2,
@@ -186,7 +206,7 @@ describe('M3 update, list, delete and local locking', () => {
     await deleteDirectly()
     const deletesBefore = server.requestLog.filter((entry) => entry.path === '/v1/file/delete').length
     const result = await application.delete({
-      profile: 'mock',
+      projectRoot: workspace,
       recordId: published.recordId,
       authorization: { granted: true, action: 'delete', recordId: published.recordId }
     })
@@ -197,7 +217,7 @@ describe('M3 update, list, delete and local locking', () => {
   it('handles bounded cache lag and verifies absence on a later read', async () => {
     server.setBehavior({ deleteCacheReads: 2 })
     const result = await application.delete({
-      profile: 'mock',
+      projectRoot: workspace,
       recordId: published.recordId,
       authorization: { granted: true, action: 'delete', recordId: published.recordId },
       verificationAttempts: 3,
@@ -216,7 +236,7 @@ describe('M3 update, list, delete and local locking', () => {
     expect(first.status).toBe('verified')
     expect(second.status).toBe('verified')
     expect(server.maximumConcurrentCreateRequests).toBe(1)
-    const records = JSON.parse(await readFile(path.join(dataDirectory, 'records.json'), 'utf8')) as { records: unknown[] }
+    const records = JSON.parse(await readFile(path.join(workspace, '.openai', 'share-note.json'), 'utf8')) as { records: unknown[] }
     expect(records.records).toHaveLength(1)
   })
 })

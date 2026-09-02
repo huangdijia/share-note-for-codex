@@ -34,6 +34,7 @@ describe('M2 encrypted publish and verification', () => {
       allowInsecureLoopback: true,
       credentialEnvVar: 'MOCK_CREDENTIAL'
     })
+    await application.configureProject({ projectRoot: workspace, profile: 'mock' })
   })
 
   afterEach(async () => {
@@ -44,22 +45,21 @@ describe('M2 encrypted publish and verification', () => {
 
   async function preview() {
     return application.preview({
-      profile: 'mock',
-      sourcePath,
-      workspaceRoot: workspace
+      sourcePath: 'report.md',
+      projectRoot: workspace
     })
   }
 
   function publishRequest(result: Awaited<ReturnType<typeof preview>>, returnShareUrl = true) {
     return {
-      profile: 'mock',
+      projectRoot: workspace,
       previewId: result.previewId,
-      workspaceRoot: workspace,
       expectedContentHash: result.contentHash,
       authorization: {
         granted: true as const,
         action: 'publish' as const,
         profile: 'mock',
+        projectBindingHash: result.projectBindingHash,
         contentHash: result.contentHash,
         encryption: 'encrypted' as const
       },
@@ -88,27 +88,24 @@ describe('M2 encrypted publish and verification', () => {
     const localPreview = await preview()
     const result = await application.publish(publishRequest(localPreview, false))
     expect(result).not.toHaveProperty('shareUrl')
-    const persisted = await readFile(path.join(dataDirectory, 'records.json'), 'utf8')
+    const persisted = await readFile(path.join(workspace, '.openai', 'share-note.json'), 'utf8')
     expect(persisted).not.toContain('#')
     expect(persisted).not.toContain('Only encrypted content may leave the client.')
   })
 
-  it('does not persist API keys or note fragment keys in ordinary state files', async () => {
+  it('keeps fragment keys only in the ignored project key file', async () => {
     const localPreview = await preview()
     const result = await application.publish(publishRequest(localPreview, true))
     const fragmentKey = result.shareUrl!.split('#')[1]!
-    const contents: string[] = []
-    async function collect(directory: string): Promise<void> {
-      for (const entry of await readdir(directory)) {
-        const candidate = path.join(directory, entry)
-        if ((await stat(candidate)).isDirectory()) await collect(candidate)
-        else contents.push(await readFile(candidate, 'utf8'))
-      }
-    }
-    await collect(dataDirectory)
-    const persisted = contents.join('\n')
-    expect(persisted).not.toContain(server.apiKey)
-    expect(persisted).not.toContain(fragmentKey)
+    const manifest = await readFile(path.join(workspace, '.openai', 'share-note.json'), 'utf8')
+    const keyFile = path.join(workspace, '.openai', 'share-note.keys.json')
+    const keys = await readFile(keyFile, 'utf8')
+    const ignore = await readFile(path.join(workspace, '.openai', '.gitignore'), 'utf8')
+    expect(manifest).not.toContain(server.apiKey)
+    expect(manifest).not.toContain(fragmentKey)
+    expect(keys).toContain(fragmentKey)
+    expect(ignore.split(/\r?\n/)).toContain('share-note.keys.json')
+    if (process.platform !== 'win32') expect((await stat(keyFile)).mode & 0o777).toBe(0o600)
   })
 
   it('blocks changed source content before any create request', async () => {
@@ -143,9 +140,8 @@ describe('M2 encrypted publish and verification', () => {
     expect(result).toMatchObject({ ok: false, status: 'unknown' })
     expect(result).not.toHaveProperty('shareUrl')
     expect(server.requestLog.filter((entry) => entry.path === '/v1/file/create-note')).toHaveLength(1)
-    const operations = await readdir(path.join(dataDirectory, 'operations'))
-    const operation = await readFile(path.join(dataDirectory, 'operations', operations[0]!), 'utf8')
-    expect(operation).toContain('"status": "unknown"')
+    const manifest = await readFile(path.join(workspace, '.openai', 'share-note.json'), 'utf8')
+    expect(manifest).toContain('"status": "unknown"')
   })
 
   it('reports submitted_unverified when the returned page cannot be matched', async () => {

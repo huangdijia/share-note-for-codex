@@ -24,6 +24,9 @@ export async function readSafeSource(
   allowedSourceRoots: string[],
   maximumBytes: number
 ): Promise<SafeSource> {
+  if (typeof sourcePath !== 'string' || !sourcePath || path.isAbsolute(sourcePath)) {
+    throw new ShareNoteError('invalid_request', 'sourcePath must be relative to projectRoot')
+  }
   const resolvedProjectRoot = await realpath(projectRoot).catch(() => undefined)
   if (!resolvedProjectRoot || !(await stat(resolvedProjectRoot)).isDirectory()) {
     throw new ShareNoteError('source_blocked', 'Configured project root does not exist or is not a directory')

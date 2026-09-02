@@ -65,6 +65,9 @@ async function main(): Promise<void> {
     case 'doctor':
       result = await application.doctor(request as never)
       break
+    case 'configure-project':
+      result = await application.configureProject(request as never)
+      break
     case 'preview':
       result = await application.preview(request as never)
       break

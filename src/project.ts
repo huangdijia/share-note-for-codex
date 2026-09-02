@@ -204,8 +204,9 @@ export function projectNoteKeyReference(recordId: string): string {
   return `project-file:notes:${recordId}`
 }
 
-export function projectRelativePath(projectRoot: string, target: string): string {
-  const relative = path.relative(projectRoot, path.resolve(target))
+export async function projectRelativePath(projectRoot: string, target: string): Promise<string> {
+  const resolvedTarget = await realpath(target).catch(() => path.resolve(target))
+  const relative = path.relative(projectRoot, resolvedTarget)
   if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
     throw new ShareNoteError('source_blocked', 'Source resolves outside the configured project root')
   }
@@ -431,6 +432,7 @@ export class ProjectStore {
   }
 }
 
-export function sourceBelongsToProject(projectRoot: string, sourcePath: string): boolean {
-  return inside(projectRoot, path.resolve(sourcePath)) && path.resolve(sourcePath) !== projectRoot
+export async function sourceBelongsToProject(projectRoot: string, sourcePath: string): Promise<boolean> {
+  const resolvedSource = await realpath(sourcePath).catch(() => path.resolve(sourcePath))
+  return inside(projectRoot, resolvedSource) && resolvedSource !== projectRoot
 }
