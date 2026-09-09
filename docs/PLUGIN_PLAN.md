@@ -1,4 +1,4 @@
-# Share Note for Codex：插件开发规划
+# Share Note：插件开发规划
 
 版本：规划稿 0.1；日期：2026-09-01。
 
@@ -8,7 +8,7 @@
 
 | 项目 | 决策 |
 |---|---|
-| 展示名称 | Share Note for Codex |
+| 展示名称 | Share Note |
 | 插件标识 | share-note |
 | 建议仓库名称 | codex-share-note |
 | 首发目标版本 | 0.1.0 |

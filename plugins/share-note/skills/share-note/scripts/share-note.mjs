@@ -28796,7 +28796,7 @@ import { readFile as readFile5 } from "node:fs/promises";
 import path11 from "node:path";
 
 // src/app.ts
-import { randomBytes as randomBytes2 } from "node:crypto";
+import { createHash as createHash9, randomBytes as randomBytes2 } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 // src/errors.ts
@@ -39906,6 +39906,14 @@ var PendingSetupStore = class {
 
 // src/app.ts
 var BROWSER_API_KEY_ENV_VAR = "SHARE_NOTE_BROWSER_API_KEY";
+function codexSessionId(pending, projectRoot) {
+  return createHash9("sha256").update(JSON.stringify([pending.bindingHash, projectRoot])).digest("hex");
+}
+function assertCodexRequestHasNoCredential(request) {
+  if (["apiKey", "token", "uid", "authorizationUrl"].some((key) => key in request)) {
+    throw new ShareNoteError("invalid_request", "Codex setup request files must not contain credentials or authorization URLs");
+  }
+}
 var DEFAULT_BROWSER_SETUP_DEPENDENCIES = {
   now: Date.now,
   createUid: createBrowserSetupUid,
@@ -40083,7 +40091,7 @@ var ShareNoteApplication = class {
     }
     return profile;
   }
-  async openBrowserSetup(request, profile) {
+  async openBrowserSetup(request, profile, launchBrowser = true) {
     if (await this.configs.find(profile.name)) {
       throw new ShareNoteError("conflict", "Profile already exists; use setup-browser to validate and reuse it");
     }
@@ -40094,6 +40102,7 @@ var ShareNoteApplication = class {
       pendingFieldsFromProfile(profile, uid, request.service),
       request.expiresInSeconds
     );
+    if (!launchBrowser) return pending;
     try {
       await this.browserSetup.openBrowser(authorizationUrl, new URL(profile.apiBaseUrl).origin);
     } catch (error) {
@@ -40123,6 +40132,25 @@ var ShareNoteApplication = class {
   }
   async setupBrowser(request, readApiKey, prepareInput = () => {
   }) {
+    return this.setupBrowserFlow(request, readApiKey, prepareInput);
+  }
+  async setupCodexBrowser(request) {
+    delete this.environment[BROWSER_API_KEY_ENV_VAR];
+    assertCodexRequestHasNoCredential(request);
+    return this.setupBrowserFlow(request, async () => "", () => {
+    }, {});
+  }
+  async setupCodexBrowserComplete(request) {
+    const apiKey = this.environment[BROWSER_API_KEY_ENV_VAR] ?? "";
+    delete this.environment[BROWSER_API_KEY_ENV_VAR];
+    assertCodexRequestHasNoCredential(request);
+    if (typeof request.sessionId !== "string" || !/^[a-f0-9]{64}$/.test(request.sessionId)) {
+      throw new ShareNoteError("invalid_request", "A valid Codex browser sessionId is required");
+    }
+    return this.setupBrowserFlow(request, async () => apiKey, () => {
+    }, { sessionId: request.sessionId });
+  }
+  async setupBrowserFlow(request, readApiKey, prepareInput, codex) {
     const project = await ProjectStore.open(request.projectRoot, this.dataDirectory);
     const checkProject = async () => {
       const binding2 = await project.find();
@@ -40147,6 +40175,9 @@ var ShareNoteApplication = class {
     }
     let resumed = false;
     if (existing) {
+      if (codex?.sessionId) {
+        throw new ShareNoteError("conflict", "Profile already configured; run setup-codex-browser to validate and reuse it");
+      }
       if (!isDeepStrictEqual(existing, profile)) {
         throw new ShareNoteError("source_blocked", "Existing profile differs from the requested setup; use its original configuration");
       }
@@ -40164,8 +40195,28 @@ var ShareNoteApplication = class {
         }
         resumed = true;
       }
+      if (codex?.sessionId && (!pending || codexSessionId(pending, project.projectRoot) !== codex.sessionId)) {
+        throw new ShareNoteError("conflict", "Codex browser session is missing, expired, or belongs to another setup");
+      }
       prepareInput();
-      pending ??= await this.openBrowserSetup(startRequest, profile);
+      pending ??= await this.openBrowserSetup(startRequest, profile, codex === void 0);
+      if (codex && !codex.sessionId) {
+        return {
+          ok: true,
+          action: "setup-codex-browser",
+          status: "awaiting_user",
+          profile: profile.name,
+          projectRoot: project.projectRoot,
+          reusedCredential: false,
+          resumed,
+          authorizationUrl: buildBrowserAuthorizationUrl(profile.apiBaseUrl, pending.uid),
+          apiOrigin: new URL(profile.apiBaseUrl).origin,
+          webOrigin: new URL(profile.webBaseUrl).origin,
+          expiresAt: pending.expiresAt,
+          sessionId: codexSessionId(pending, project.projectRoot),
+          warnings: ["Codex browser authorization exposes the authorization URL and page token to the agent tool context. Do not echo or log the token."]
+        };
+      }
       const apiKey = (await readApiKey()).trim();
       await checkProject();
       await this.completeBrowserCredential(profile.name, apiKey, pending.bindingHash);
@@ -40182,7 +40233,7 @@ var ShareNoteApplication = class {
     }
     return {
       ok: true,
-      action: "setup-browser",
+      action: codex ? codex.sessionId ? "setup-codex-browser-complete" : "setup-codex-browser" : "setup-browser",
       status: "configured",
       profile: profile.name,
       projectRoot: project.projectRoot,
@@ -40423,7 +40474,6 @@ function assertHiddenInputAvailable(input = process.stdin, output = process.stde
 }
 async function readHiddenInput(prompt, input = process.stdin, output = process.stderr) {
   assertHiddenInputAvailable(input, output);
-  output.write(prompt);
   const wasRaw = input.isRaw === true;
   return new Promise((resolve, reject) => {
     let value = "";
@@ -40466,11 +40516,12 @@ async function readHiddenInput(prompt, input = process.stdin, output = process.s
     input.setRawMode(true);
     input.resume();
     input.on("data", onData);
+    output.write(prompt);
   });
 }
 
 // src/secrets/plaintext-file.ts
-import { createHash as createHash9 } from "node:crypto";
+import { createHash as createHash10 } from "node:crypto";
 import path10 from "node:path";
 function credentialReference(profile) {
   return { type: "plaintext-file", id: `credentials:${validateProfileName(profile)}` };
@@ -40543,7 +40594,7 @@ var PlaintextFileSecretStore = class {
   }
   pathFor(reference) {
     const category = reference.startsWith("plaintext-file:credentials:") ? "credentials" : "note-keys";
-    const digest = createHash9("sha256").update(reference).digest("hex");
+    const digest = createHash10("sha256").update(reference).digest("hex");
     return path10.join(this.dataDirectory, "secrets", category, `${digest}.json`);
   }
   async readPlaintextFile(reference) {
@@ -40562,10 +40613,11 @@ async function requestFromArguments(arguments_) {
   if (action === "themes" && arguments_.length === 1) {
     return { action, request: {} };
   }
-  if (action === "setup-browser" && arguments_.length === 1) {
+  if ((action === "setup-browser" || action === "setup-codex-browser") && arguments_.length === 1) {
     return { action, request: { profile: "public", service: "public", projectRoot: process.cwd() } };
   }
-  if (!action || flag !== "--request" || !requestPath || rest.length > 0) usage();
+  const keyFromTty = action === "setup-codex-browser-complete" && rest.length === 1 && rest[0] === "--key-tty";
+  if (!action || flag !== "--request" || !requestPath || rest.length > 0 && !keyFromTty) usage();
   const resolved = path11.resolve(requestPath);
   const contents = await readFile5(resolved, "utf8");
   if (Buffer.byteLength(contents) > 1024 * 1024) {
@@ -40575,10 +40627,10 @@ async function requestFromArguments(arguments_) {
   if (!request || typeof request !== "object" || Array.isArray(request)) {
     throw new ShareNoteError("invalid_request", "Request file must contain one JSON object");
   }
-  return { action, request };
+  return { action, request, keyFromTty };
 }
 async function main() {
-  const { action, request } = await requestFromArguments(process.argv.slice(2));
+  const { action, request, keyFromTty } = await requestFromArguments(process.argv.slice(2));
   const dataDirectory = userDataDirectory();
   const application = new ShareNoteApplication(
     dataDirectory,
@@ -40623,6 +40675,21 @@ async function main() {
     }
     case "setup-browser-start":
       result = await application.setupBrowserStart(request);
+      break;
+    case "setup-codex-browser":
+      delete process.env[BROWSER_API_KEY_ENV_VAR];
+      result = await application.setupCodexBrowser(request);
+      break;
+    case "setup-codex-browser-complete":
+      try {
+        if (keyFromTty) {
+          delete process.env[BROWSER_API_KEY_ENV_VAR];
+          process.env[BROWSER_API_KEY_ENV_VAR] = await readHiddenInput("Share Note API key: ");
+        }
+        result = await application.setupCodexBrowserComplete(request);
+      } finally {
+        delete process.env[BROWSER_API_KEY_ENV_VAR];
+      }
       break;
     case "setup-browser-complete": {
       const completeRequest = request;

@@ -20,7 +20,6 @@ export async function readHiddenInput(
   output: NodeJS.WriteStream = process.stderr
 ): Promise<string> {
   assertHiddenInputAvailable(input, output)
-  output.write(prompt)
   const wasRaw = input.isRaw === true
   return new Promise<string>((resolve, reject) => {
     let value = ''
@@ -65,5 +64,7 @@ export async function readHiddenInput(
     input.setRawMode(true)
     input.resume()
     input.on('data', onData)
+    // Signal readiness only after echo is disabled and the reader is attached.
+    output.write(prompt)
   })
 }

@@ -1,13 +1,13 @@
 {
   "name": "share-note",
-  "version": "0.1.0+codex.20260902044022",
+  "version": "0.1.0+codex.20260909010613",
   "description": "Preview, publish, read, update, list, and delete Share Note pages through a bundled local HTTP client.",
   "author": {
     "name": "Share Note for Codex contributors"
   },
   "skills": "./skills/",
   "interface": {
-    "displayName": "Share Note for Codex",
+    "displayName": "Share Note",
     "shortDescription": "Preview and manage Share Note pages locally.",
     "longDescription": "Uses a bundled local client to preview, publish, read, update, list, and delete Share Note pages without Obsidian or a resident service.",
     "developerName": "Share Note for Codex contributors",

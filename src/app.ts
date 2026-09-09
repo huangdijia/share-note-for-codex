@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import type { FetchImplementation } from './http/client.js'
 import { ShareNoteHttpClient } from './http/client.js'
@@ -70,6 +70,20 @@ export interface SetupBrowserCompleteRequest {
 export interface SetupBrowserRequest extends Omit<SetupBrowserStartRequest, 'allowedSourceRoots'> {
   projectRoot: string
   allowedSourceRoots?: string[]
+}
+
+export interface SetupCodexBrowserCompleteRequest extends SetupBrowserRequest {
+  sessionId: string
+}
+
+function codexSessionId(pending: PendingBrowserSetup, projectRoot: string): string {
+  return createHash('sha256').update(JSON.stringify([pending.bindingHash, projectRoot])).digest('hex')
+}
+
+function assertCodexRequestHasNoCredential(request: object): void {
+  if (['apiKey', 'token', 'uid', 'authorizationUrl'].some((key) => key in request)) {
+    throw new ShareNoteError('invalid_request', 'Codex setup request files must not contain credentials or authorization URLs')
+  }
 }
 
 export interface BrowserSetupDependencies {
@@ -319,7 +333,8 @@ export class ShareNoteApplication {
 
   private async openBrowserSetup(
     request: SetupBrowserStartRequest,
-    profile: ProfileConfig
+    profile: ProfileConfig,
+    launchBrowser = true
   ): Promise<PendingBrowserSetup> {
     if (await this.configs.find(profile.name)) {
       throw new ShareNoteError('conflict', 'Profile already exists; use setup-browser to validate and reuse it')
@@ -331,6 +346,7 @@ export class ShareNoteApplication {
       pendingFieldsFromProfile(profile, uid, request.service),
       request.expiresInSeconds
     )
+    if (!launchBrowser) return pending
     try {
       await this.browserSetup.openBrowser(authorizationUrl, new URL(profile.apiBaseUrl).origin)
     } catch (error) {
@@ -370,12 +386,42 @@ export class ShareNoteApplication {
     request: SetupBrowserRequest,
     readApiKey: () => Promise<string>,
     prepareInput: () => void = () => {}
+  ) {
+    return this.setupBrowserFlow(request, readApiKey, prepareInput)
+  }
+
+  async setupCodexBrowser(request: SetupBrowserRequest) {
+    delete this.environment[BROWSER_API_KEY_ENV_VAR]
+    assertCodexRequestHasNoCredential(request)
+    return this.setupBrowserFlow(request, async () => '', () => {}, {})
+  }
+
+  async setupCodexBrowserComplete(request: SetupCodexBrowserCompleteRequest) {
+    const apiKey = this.environment[BROWSER_API_KEY_ENV_VAR] ?? ''
+    delete this.environment[BROWSER_API_KEY_ENV_VAR]
+    assertCodexRequestHasNoCredential(request)
+    if (typeof request.sessionId !== 'string' || !/^[a-f0-9]{64}$/.test(request.sessionId)) {
+      throw new ShareNoteError('invalid_request', 'A valid Codex browser sessionId is required')
+    }
+    return this.setupBrowserFlow(request, async () => apiKey, () => {}, { sessionId: request.sessionId })
+  }
+
+  private async setupBrowserFlow(
+    request: SetupBrowserRequest,
+    readApiKey: () => Promise<string>,
+    prepareInput: () => void,
+    codex?: { sessionId?: string }
   ): Promise<BaseResult & {
     profile: string
     projectRoot: string
-    authentication: 'accepted'
+    authentication?: 'accepted'
     reusedCredential: boolean
     resumed: boolean
+    authorizationUrl?: string
+    apiOrigin?: string
+    webOrigin?: string
+    expiresAt?: string
+    sessionId?: string
   }> {
     const project = await ProjectStore.open(request.projectRoot, this.dataDirectory)
     const checkProject = async (): Promise<void> => {
@@ -402,6 +448,9 @@ export class ShareNoteApplication {
     }
     let resumed = false
     if (existing) {
+      if (codex?.sessionId) {
+        throw new ShareNoteError('conflict', 'Profile already configured; run setup-codex-browser to validate and reuse it')
+      }
       if (!isDeepStrictEqual(existing, profile)) {
         throw new ShareNoteError('source_blocked', 'Existing profile differs from the requested setup; use its original configuration')
       }
@@ -420,8 +469,29 @@ export class ShareNoteApplication {
         }
         resumed = true
       }
+      // Completion must never create a replacement identity for a stale authorization page.
+      if (codex?.sessionId && (!pending || codexSessionId(pending, project.projectRoot) !== codex.sessionId)) {
+        throw new ShareNoteError('conflict', 'Codex browser session is missing, expired, or belongs to another setup')
+      }
       prepareInput()
-      pending ??= await this.openBrowserSetup(startRequest, profile)
+      pending ??= await this.openBrowserSetup(startRequest, profile, codex === undefined)
+      if (codex && !codex.sessionId) {
+        return {
+          ok: true,
+          action: 'setup-codex-browser',
+          status: 'awaiting_user',
+          profile: profile.name,
+          projectRoot: project.projectRoot,
+          reusedCredential: false,
+          resumed,
+          authorizationUrl: buildBrowserAuthorizationUrl(profile.apiBaseUrl, pending.uid),
+          apiOrigin: new URL(profile.apiBaseUrl).origin,
+          webOrigin: new URL(profile.webBaseUrl).origin,
+          expiresAt: pending.expiresAt,
+          sessionId: codexSessionId(pending, project.projectRoot),
+          warnings: ['Codex browser authorization exposes the authorization URL and page token to the agent tool context. Do not echo or log the token.']
+        }
+      }
       const apiKey = (await readApiKey()).trim()
       // Human input can take minutes. Recheck both project and pending bindings before saving.
       await checkProject()
@@ -439,7 +509,7 @@ export class ShareNoteApplication {
     }
     return {
       ok: true,
-      action: 'setup-browser',
+      action: codex ? (codex.sessionId ? 'setup-codex-browser-complete' : 'setup-codex-browser') : 'setup-browser',
       status: 'configured',
       profile: profile.name,
       projectRoot: project.projectRoot,

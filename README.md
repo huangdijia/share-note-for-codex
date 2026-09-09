@@ -1,6 +1,6 @@
-# Share Note for Codex
+# Share Note
 
-Share Note for Codex is a local Codex plugin that previews, publishes, reads, updates, lists, and deletes Share Note pages through a bundled HTTP client. It does not install or call Obsidian, use Obsidian CLI/URI/vault state, start a resident service, or install dependencies at runtime.
+Share Note is a local Codex plugin that previews, publishes, reads, updates, lists, and deletes Share Note pages through a bundled HTTP client. It does not install or call Obsidian, use Obsidian CLI/URI/vault state, start a resident service, or install dependencies at runtime.
 
 Version 0.1.0 targets Node.js 20+ on Windows, Linux, and macOS. API credentials are stored as plaintext JSON in the user-data directory. Each project's profile binding, publication records, and operation state live in `.openai/share-note.json`; its note fragment keys live in the ignored, private `.openai/share-note.keys.json`. The client does not use a master password, macOS Keychain, or another platform credential manager, and treats the plugin installation as read-only.
 
@@ -64,6 +64,20 @@ node /absolute/path/to/share-note.mjs setup-browser --request /absolute/path/to/
 `allowedSourceRoots` may be omitted: existing profile roots are preserved, otherwise the project root is used. For self-hosting, add `projectRoot` to the explicitly confirmed self-hosted request below and call `setup-browser` with it.
 
 Rerun the same command after an interruption to resume an unexpired matching pending setup without reopening the browser. A successful rerun validates and reuses the saved credential without prompting. Network errors, a changed source configuration, a corrupt configuration, or a project bound to another profile stop the flow. An existing rejected credential is never silently replaced with a new identity. If local project binding fails after the credential was saved, rerun the command to reuse that credential and finish binding. An already installed plugin must be refreshed from this checkout to use the new bundle.
+
+## Codex in-app browser binding
+
+For AI-assisted binding in Codex, use the bundled Skill's [setup workflow](plugins/share-note/skills/share-note/references/setup.md). The agent calls:
+
+```sh
+node /absolute/path/to/share-note.mjs setup-codex-browser --request /absolute/path/to/browser-setup.json
+```
+
+The request uses the same `profile`, `service`, `projectRoot`, optional roots and confirmed self-hosted origins as `setup-browser`. The no-request shortcut uses the current directory and public profile. An existing valid credential is verified and bound immediately. Otherwise, the command returns `awaiting_user`, the exact `authorizationUrl`, `sessionId`, origins, and expiry without opening a system browser. The agent opens that URL in the Codex in-app browser, lets you complete human verification, and reads the displayed API key.
+
+The agent adds `sessionId` to a copy of the original request and calls `setup-codex-browser-complete`, supplying the key in the child process environment `SHARE_NOTE_BROWSER_API_KEY`. For tools without a structured environment argument, append `--key-tty` and supply the token to the dedicated PTY only after the hidden-input prompt appears. Without that flag, no terminal prompt is used. Completion checks the pending session and canonical project root, authenticates with empty `check-files`, saves, binds the project, and consumes pending state. Missing/expired/replaced sessions fail without generating another identity; a bad key remains unsaved and can be retried with the same session. Rerunning prepare validates/reuses an already saved credential, including after a local binding failure.
+
+**Exposure:** in this explicitly selected mode, the authorization URL/UID and page token can enter agent tool/session context. The token never belongs in request files, shell arguments, CLI output, or assistant replies. Use a structured child-process environment, not shell interpolation. Keep manual `setup-browser` when you want hidden local input. If a browser tool or readable page token is unavailable, use the manual fallback described in the Skill. Live public-service page compatibility has not been verified by the mock tests.
 
 ### Two-step setup and recovery
 
@@ -144,7 +158,7 @@ Request-file invocations have this shape (`setup-browser` also supports the no-r
 node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/request.json
 ```
 
-Supported actions are `setup`, `setup-browser`, `setup-browser-start`, `setup-browser-complete`, `doctor`, `configure-project`, `themes`, `preview`, `publish`, `read`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, service origins, and explicit write authorization—not secrets, browser-returned keys, or note bodies.
+Supported actions are `setup-codex-browser`, `setup-codex-browser-complete`, `setup`, `setup-browser`, `setup-browser-start`, `setup-browser-complete`, `doctor`, `configure-project`, `themes`, `preview`, `publish`, `read`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, session IDs, service origins, and explicit write authorization—not secrets, browser-returned keys, or note bodies.
 
 No master-password environment variable is required. Legacy setup and doctor remain profile-scoped; `setup-browser` also binds the requested project. Every document action (`preview`, `publish`, `read`, `update`, `list`, and `delete`) requires an absolute `projectRoot`; the profile is loaded from that project's manifest. These actions reject the legacy top-level `profile` and `workspaceRoot` fields, and source paths must be relative to `projectRoot`.
 
