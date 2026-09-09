@@ -355,7 +355,7 @@ export class ProjectStore {
     await writeAtomic(ignorePath, `${contents}${separator}share-note.keys.json\n`, 0o644)
   }
 
-  async configure(profile: string): Promise<ProjectManifest> {
+  async configure(profile: string, allowRebind = true): Promise<ProjectManifest> {
     const safeProfile = validateProfileName(profile)
     await this.ensureKeyIgnore()
     return withLocalLock(this.dataDirectory, `project:${this.projectRoot}:manifest`, async () => {
@@ -367,6 +367,9 @@ export class ProjectStore {
       }
       const manifest = await this.load()
       if (manifest.profile === safeProfile) return manifest
+      if (!allowRebind) {
+        throw new ShareNoteError('conflict', 'Project is already bound to another profile')
+      }
       if (manifest.records.length > 0 || manifest.operations.length > 0) {
         throw new ShareNoteError('conflict', 'Project profile cannot change after records or operations exist')
       }
@@ -374,6 +377,18 @@ export class ProjectStore {
       await writeJson(this.manifestPath, updated, 0o644)
       return updated
     })
+  }
+
+  async find(): Promise<ProjectManifest | undefined> {
+    const info = await lstat(this.openAiDirectory).catch((error: unknown) => {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+      throw error
+    })
+    if (!info) return undefined
+    if (info.isSymbolicLink() || !info.isDirectory()) {
+      throw new ShareNoteError('configuration_missing', '.openai must be a regular directory inside the project')
+    }
+    return await assertRegularFile(this.manifestPath, true) ? this.load() : undefined
   }
 
   async load(): Promise<ProjectManifest> {

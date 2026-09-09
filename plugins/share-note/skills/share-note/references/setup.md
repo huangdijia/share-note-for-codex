@@ -2,7 +2,31 @@
 
 The client requires Node.js 20 or newer and supports Windows, Linux, and macOS. Trusted profiles, API credentials, previews, locks, and pending browser setup live in the platform user-data directory, never the plugin directory. Project profile bindings, records, and operations live in `.openai/share-note.json`; plaintext per-note keys live in the ignored `.openai/share-note.keys.json`. The client does not use a master password, Keychain, or another OS credential manager.
 
-## Browser-assisted setup (recommended)
+## One-command browser setup (recommended)
+
+Prepare one non-secret request with `profile`, `service` and the exact absolute `projectRoot`, then call `setup-browser` in a user-accessible interactive local terminal. For public setup:
+
+```json
+{
+  "profile": "public",
+  "service": "public",
+  "projectRoot": "/absolute/path/to/project"
+}
+```
+
+`allowedSourceRoots` is optional: it preserves an existing profile's roots or defaults a new profile to `projectRoot`. Include it explicitly to restrict a new profile to a docs directory. For self-hosting use the independently confirmed origins below, with `projectRoot` added.
+
+The public-service shortcut `node <absolute-client-path> setup-browser` uses the terminal's current directory and the `public` profile. Only use this shortcut when its service, profile and project match the user's request.
+
+The command checks configuration, reuses a valid existing credential or resumes a matching unexpired authorization, and opens the browser only when a new authorization is needed. The user completes human verification and pastes the API key into the hidden local terminal prompt. The command validates authentication before saving, then binds the project automatically. Interactive wrong-key input may be retried up to three times without opening another authorization page.
+
+Do not ask the user to run separate completion, doctor or configure-project steps after successful `setup-browser`. Interpret `authentication: "accepted"` and `status: "configured"` as successful authentication and local project binding, not a verified publication. `reusedCredential` and `resumed` describe whether existing credentials or pending authorization were reused.
+
+Keep the terminal accessible for the user to type directly; never send the token through a Codex message or tool argument. If no interactive terminal is available, the client stops before opening a new browser. Provide the same command for the user's terminal. For an interruption, wrong key or transient network failure, rerun the same request; it resumes matching unexpired pending state. Explicit cancellation still uses `setup-browser-complete` with `cancel: true`.
+
+Do not retry authentication failure for an existing saved profile by generating a new identity. Do not change service origins, allowed roots, or another project binding to make setup pass. If saving credentials succeeded but project binding failed, fix the local project issue and rerun the same command; the credential is reused.
+
+## Two-step browser setup (recovery)
 
 Use two restricted request files. The first contains no UID, key, or authorization URL.
 
@@ -34,9 +58,9 @@ For self-hosting, require the user to separately inspect and confirm the API and
 
 Do not choose, infer, rewrite, or fall back between these origins. In particular, a failed self-hosted launch or doctor never retries against the public service. Browser opening uses direct executable argument arrays for macOS, Windows and Linux; it does not use shell interpolation.
 
-After the user completes the normal human verification in the browser, call `setup-browser-complete` with `{ "profile": "..." }`. The local client prompts on the user's TTY with non-echoing input for the displayed API key, passes it through a process-scoped environment entry into `setup`, then stores it as plaintext in a private local file. The client does not automate Turnstile, read the browser, read the clipboard, consume an `obsidian://` callback, or expose the key in an output. Use `{ "profile": "...", "cancel": true }` to delete a pending setup without prompting.
+After the user completes the normal human verification in the browser, call `setup-browser-complete` with `{ "profile": "..." }`. The local client prompts on the user's TTY with non-echoing input for the displayed API key, verifies authentication against the bound API origin, then stores it as plaintext in a private local file. The client does not automate Turnstile, read the browser, read the clipboard, consume an `obsidian://` callback, or expose the key in an output. Use `{ "profile": "...", "cancel": true }` to delete a pending setup without prompting.
 
-Pending setup is removed after successful completion, explicit cancellation, browser-launch failure, or on the next access after expiry. A missing, changed, expired, or already-consumed pending record fails closed. The user can restart browser setup after such a failure; there is no fully automatic recovery.
+Pending setup is removed after successful completion, explicit cancellation, browser-launch failure, or on the next access after expiry. A missing, changed, expired, or already-consumed pending record fails closed during completion. A wrong key is not saved and leaves an unexpired pending record available for another attempt. `setup-browser` resumes a matching record or starts a new authorization after expiry; it never switches service origins.
 
 ## Existing credential import
 

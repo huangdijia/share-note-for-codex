@@ -28797,6 +28797,7 @@ import path11 from "node:path";
 
 // src/app.ts
 import { randomBytes as randomBytes2 } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
 // src/errors.ts
 var ShareNoteError = class extends Error {
@@ -29113,14 +29114,17 @@ var ConfigStore = class {
     await writeJsonAtomic(this.pathFor(profile.name), profile);
   }
   async load(name) {
+    const profile = await this.find(name);
+    if (!profile) throw new ShareNoteError("configuration_missing", `Profile ${name} is not configured`);
+    return profile;
+  }
+  async find(name) {
     const safeName = validateProfileName(name);
     const value = await readJsonFile(this.pathFor(safeName)).catch((error) => {
-      if (error.code === "ENOENT") {
-        throw new ShareNoteError("configuration_missing", `Profile ${safeName} is not configured`);
-      }
+      if (error.code === "ENOENT") return void 0;
       throw error;
     });
-    return assertProfile(value, safeName);
+    return value === void 0 ? void 0 : assertProfile(value, safeName);
   }
 };
 
@@ -39281,7 +39285,7 @@ var ProjectStore = class _ProjectStore {
     await writeAtomic(ignorePath, `${contents}${separator}share-note.keys.json
 `, 420);
   }
-  async configure(profile) {
+  async configure(profile, allowRebind = true) {
     const safeProfile = validateProfileName(profile);
     await this.ensureKeyIgnore();
     return withLocalLock(this.dataDirectory, `project:${this.projectRoot}:manifest`, async () => {
@@ -39293,6 +39297,9 @@ var ProjectStore = class _ProjectStore {
       }
       const manifest = await this.load();
       if (manifest.profile === safeProfile) return manifest;
+      if (!allowRebind) {
+        throw new ShareNoteError("conflict", "Project is already bound to another profile");
+      }
       if (manifest.records.length > 0 || manifest.operations.length > 0) {
         throw new ShareNoteError("conflict", "Project profile cannot change after records or operations exist");
       }
@@ -39300,6 +39307,17 @@ var ProjectStore = class _ProjectStore {
       await writeJson(this.manifestPath, updated, 420);
       return updated;
     });
+  }
+  async find() {
+    const info = await lstat2(this.openAiDirectory).catch((error) => {
+      if (error.code === "ENOENT") return void 0;
+      throw error;
+    });
+    if (!info) return void 0;
+    if (info.isSymbolicLink() || !info.isDirectory()) {
+      throw new ShareNoteError("configuration_missing", ".openai must be a regular directory inside the project");
+    }
+    return await assertRegularFile(this.manifestPath, true) ? this.load() : void 0;
   }
   async load() {
     const openAiInfo = await lstat2(this.openAiDirectory).catch(() => void 0);
@@ -39592,7 +39610,17 @@ var PendingSetupStore = class {
       return pending;
     });
   }
-  async complete(profile, operation) {
+  async find(profile) {
+    return withLocalLock(this.dataDirectory, `pending-setup:${validateProfileName(profile)}`, async () => {
+      const pending = await this.read(profile);
+      if (pending && Date.parse(pending.expiresAt) <= this.now()) {
+        await rm4(this.pathFor(profile), { force: true });
+        return void 0;
+      }
+      return pending;
+    });
+  }
+  async complete(profile, operation, expectedBindingHash) {
     const safeProfile = validateProfileName(profile);
     return withLocalLock(this.dataDirectory, `pending-setup:${safeProfile}`, async () => {
       const pending = await this.read(safeProfile);
@@ -39600,6 +39628,9 @@ var PendingSetupStore = class {
       if (Date.parse(pending.expiresAt) <= this.now()) {
         await rm4(this.pathFor(safeProfile), { force: true });
         throw new ShareNoteError("configuration_missing", "Pending browser setup expired; start again");
+      }
+      if (expectedBindingHash !== void 0 && pending.bindingHash !== expectedBindingHash) {
+        throw new ShareNoteError("conflict", "Pending browser setup changed while waiting for input; run setup-browser again");
       }
       const result = await operation(pending);
       await rm4(this.pathFor(safeProfile), { force: true });
@@ -39624,7 +39655,6 @@ var PendingSetupStore = class {
 
 // src/app.ts
 var BROWSER_API_KEY_ENV_VAR = "SHARE_NOTE_BROWSER_API_KEY";
-var INTERNAL_BROWSER_CREDENTIAL_ENV_VAR = "SHARE_NOTE_BROWSER_CREDENTIAL_INTERNAL";
 var DEFAULT_BROWSER_SETUP_DEPENDENCIES = {
   now: Date.now,
   createUid: createBrowserSetupUid,
@@ -39737,7 +39767,7 @@ var ShareNoteApplication = class {
       ]
     };
   }
-  async setupBrowserStart(request) {
+  async browserProfile(request) {
     let input;
     if (request.service === "public") {
       if (request.apiBaseUrl !== void 0 || request.webBaseUrl !== void 0 || request.confirmedApiOrigin !== void 0 || request.confirmedWebOrigin !== void 0 || request.allowInsecureLoopback !== void 0) {
@@ -39780,6 +39810,12 @@ var ShareNoteApplication = class {
         throw new ShareNoteError("source_blocked", "Self-hosted API or web origin confirmation does not match");
       }
     }
+    return profile;
+  }
+  async openBrowserSetup(request, profile) {
+    if (await this.configs.find(profile.name)) {
+      throw new ShareNoteError("conflict", "Profile already exists; use setup-browser to validate and reuse it");
+    }
     const uid = this.browserSetup.createUid();
     const authorizationUrl = buildBrowserAuthorizationUrl(profile.apiBaseUrl, uid);
     const pendingStore = new PendingSetupStore(this.dataDirectory, this.browserSetup.now);
@@ -39794,6 +39830,11 @@ var ShareNoteApplication = class {
       if (error instanceof ShareNoteError) throw error;
       throw new ShareNoteError("network_error", "System browser could not be opened");
     }
+    return pending;
+  }
+  async setupBrowserStart(request) {
+    const profile = await this.browserProfile(request);
+    const pending = await this.openBrowserSetup(request, profile);
     return {
       ok: true,
       action: "setup-browser-start",
@@ -39807,6 +39848,77 @@ var ShareNoteApplication = class {
         "Complete the human verification in the system browser, then run setup-browser-complete in the same local account.",
         "The client does not read browser content, the clipboard, or an Obsidian callback."
       ]
+    };
+  }
+  async setupBrowser(request, readApiKey, prepareInput = () => {
+  }) {
+    const project = await ProjectStore.open(request.projectRoot, this.dataDirectory);
+    const checkProject = async () => {
+      const binding2 = await project.find();
+      if (binding2 && binding2.profile !== request.profile) {
+        throw new ShareNoteError("conflict", "Project is already bound to another profile; use configure-project explicitly");
+      }
+    };
+    await checkProject();
+    const existing = await this.configs.find(request.profile);
+    const startRequest = {
+      ...request,
+      allowedSourceRoots: request.allowedSourceRoots ?? existing?.allowedSourceRoots ?? [project.projectRoot],
+      ...existing && request.maxSourceBytes === void 0 ? { maxSourceBytes: existing.maxSourceBytes } : {},
+      ...existing && request.maxResponseBytes === void 0 ? { maxResponseBytes: existing.maxResponseBytes } : {}
+    };
+    const profile = await this.browserProfile(startRequest);
+    const sourceAccess = await Promise.all(profile.allowedSourceRoots.map(
+      async (root) => root === project.projectRoot || await sourceBelongsToProject(root, project.projectRoot) || await sourceBelongsToProject(project.projectRoot, root)
+    ));
+    if (!sourceAccess.some(Boolean)) {
+      throw new ShareNoteError("source_blocked", "Profile source roots do not cover this project; use a project within the allowed roots or configure a separate profile");
+    }
+    let resumed = false;
+    if (existing) {
+      if (!isDeepStrictEqual(existing, profile)) {
+        throw new ShareNoteError("source_blocked", "Existing profile differs from the requested setup; use its original configuration");
+      }
+      await this.doctor({ profile: profile.name });
+    } else {
+      const pendingStore = new PendingSetupStore(this.dataDirectory, this.browserSetup.now);
+      let pending = await pendingStore.find(profile.name);
+      if (pending) {
+        const expected = pendingFieldsFromProfile(profile, pending.uid, request.service);
+        const matches = Object.entries(expected).every(
+          ([key, value]) => isDeepStrictEqual(value, pending[key])
+        );
+        if (!matches) {
+          throw new ShareNoteError("source_blocked", "Pending browser setup differs from this request; use the original request or cancel it");
+        }
+        resumed = true;
+      }
+      prepareInput();
+      pending ??= await this.openBrowserSetup(startRequest, profile);
+      const apiKey = (await readApiKey()).trim();
+      await checkProject();
+      await this.completeBrowserCredential(profile.name, apiKey, pending.bindingHash);
+    }
+    await withLocalLock(this.dataDirectory, `profile:${profile.name}`, async () => {
+      if (!isDeepStrictEqual(await this.configs.load(profile.name), profile)) {
+        throw new ShareNoteError("conflict", "Profile changed during setup; project was not bound");
+      }
+      await project.configure(profile.name, false);
+    });
+    const binding = await project.load();
+    if (binding.profile !== profile.name) {
+      throw new ShareNoteError("conflict", "Project binding changed during setup");
+    }
+    return {
+      ok: true,
+      action: "setup-browser",
+      status: "configured",
+      profile: profile.name,
+      projectRoot: project.projectRoot,
+      authentication: "accepted",
+      reusedCredential: existing !== void 0,
+      resumed,
+      warnings: ["API credentials are stored as plaintext in a private local file."]
     };
   }
   async setupBrowserComplete(request) {
@@ -39824,38 +39936,21 @@ var ShareNoteApplication = class {
     if (request.cancel !== void 0 && request.cancel !== false) {
       throw new ShareNoteError("invalid_request", "cancel must be a boolean");
     }
-    try {
-      return await pendingStore.complete(request.profile, async (pending) => {
-        const apiKey = this.environment[BROWSER_API_KEY_ENV_VAR];
-        if (!apiKey) {
-          throw new ShareNoteError("credential_missing", "Hidden browser API key input is missing");
-        }
-        this.environment[INTERNAL_BROWSER_CREDENTIAL_ENV_VAR] = JSON.stringify({
-          uid: pending.uid,
-          apiKey
-        });
-        try {
-          const result = await this.setup({
-            profile: pending.profile,
-            apiBaseUrl: pending.apiBaseUrl,
-            webBaseUrl: pending.webBaseUrl,
-            allowedSourceRoots: pending.allowedSourceRoots,
-            allowInsecureLoopback: pending.allowInsecureLoopback,
-            maxSourceBytes: pending.maxSourceBytes,
-            maxResponseBytes: pending.maxResponseBytes,
-            credentialEnvVar: INTERNAL_BROWSER_CREDENTIAL_ENV_VAR
-          });
-          return {
-            ...result,
-            action: "setup-browser-complete"
-          };
-        } finally {
-          delete this.environment[INTERNAL_BROWSER_CREDENTIAL_ENV_VAR];
-        }
-      });
-    } finally {
-      delete this.environment[BROWSER_API_KEY_ENV_VAR];
-    }
+    const apiKey = this.environment[BROWSER_API_KEY_ENV_VAR] ?? "";
+    delete this.environment[BROWSER_API_KEY_ENV_VAR];
+    return this.completeBrowserCredential(request.profile, apiKey.trim());
+  }
+  async completeBrowserCredential(profile, apiKey, expectedBindingHash) {
+    const pendingStore = new PendingSetupStore(this.dataDirectory, this.browserSetup.now);
+    return pendingStore.complete(profile, async (pending) => {
+      if (!apiKey) throw new ShareNoteError("credential_missing", "Hidden browser API key input is missing");
+      const result = await this.persistCredential(
+        pending,
+        { uid: pending.uid, apiKey },
+        pending
+      );
+      return { ...result, action: "setup-browser-complete" };
+    }, expectedBindingHash);
   }
   async setup(request) {
     if (!/^[A-Z][A-Z0-9_]{0,127}$/.test(request.credentialEnvVar)) {
@@ -39868,6 +39963,8 @@ var ShareNoteApplication = class {
     let credential;
     try {
       credential = JSON.parse(rawCredential);
+    } catch {
+      throw new ShareNoteError("credential_missing", "Credential import must be valid JSON containing uid and apiKey");
     } finally {
       delete this.environment[request.credentialEnvVar];
     }
@@ -39878,17 +39975,27 @@ var ShareNoteApplication = class {
     if (typeof fields.uid !== "string" || typeof fields.apiKey !== "string" || !fields.uid || !fields.apiKey) {
       throw new ShareNoteError("credential_missing", "Credential import must contain non-empty uid and apiKey strings");
     }
+    return this.persistCredential(request, { uid: fields.uid, apiKey: fields.apiKey });
+  }
+  async persistCredential(request, credential, pending) {
     const placeholder = {
       type: "plaintext-file",
       id: `credentials:${request.profile}`
     };
-    await buildProfileConfig(request, placeholder);
-    const credentialRef = await this.secrets.storeCredential(request.profile, {
-      uid: fields.uid,
-      apiKey: fields.apiKey
+    const profile = await buildProfileConfig(request, placeholder);
+    await withLocalLock(this.dataDirectory, `profile:${profile.name}`, async () => {
+      if (pending) {
+        if (await this.configs.find(profile.name)) {
+          throw new ShareNoteError("conflict", "Profile was configured during browser setup; run setup-browser again to reuse it");
+        }
+        await this.authenticate(profile, credential);
+        if (Date.parse(pending.expiresAt) <= this.browserSetup.now()) {
+          throw new ShareNoteError("configuration_missing", "Pending browser setup expired; start again");
+        }
+      }
+      profile.credentialRef = await this.secrets.storeCredential(profile.name, credential);
+      await this.configs.save(profile);
     });
-    const profile = await buildProfileConfig(request, credentialRef);
-    await this.configs.save(profile);
     return {
       ok: true,
       action: "setup",
@@ -39897,13 +40004,11 @@ var ShareNoteApplication = class {
       protocolProfile: profile.protocolProfile,
       warnings: [
         "Credential is stored as plaintext in a private local file; any process with access to the user data directory can read it.",
-        "Online compatibility has not yet been verified."
+        pending ? "Authentication was accepted using an empty check-files request; no note was published." : "Online compatibility has not yet been verified."
       ]
     };
   }
-  async doctor(request) {
-    const profile = await this.configs.load(request.profile);
-    const credential = await this.secrets.readCredential(profile.credentialRef);
+  async authenticate(profile, credential) {
     const client = new ShareNoteHttpClient(profile, credential, this.fetchImplementation);
     const response = await client.postJson(
       PROTOCOL_PROFILE.routes.doctor,
@@ -39912,6 +40017,11 @@ var ShareNoteApplication = class {
     if (response.success !== true || !Array.isArray(response.files)) {
       throw new ShareNoteError("protocol_error", "Doctor response does not match the frozen protocol");
     }
+  }
+  async doctor(request) {
+    const profile = await this.configs.load(request.profile);
+    const credential = await this.secrets.readCredential(profile.credentialRef);
+    await this.authenticate(profile, credential);
     return {
       ok: true,
       action: "doctor",
@@ -40031,13 +40141,16 @@ function userDataDirectory(environment = process.env, platform = process.platfor
 
 // src/platform/hidden-input.ts
 var MAXIMUM_HIDDEN_INPUT_CHARACTERS = 16384;
-async function readHiddenInput(prompt, input = process.stdin, output = process.stderr) {
+function assertHiddenInputAvailable(input = process.stdin, output = process.stderr) {
   if (!input.isTTY || !output.isTTY || typeof input.setRawMode !== "function") {
     throw new ShareNoteError(
       "secure_store_unavailable",
       "Hidden setup input requires an interactive local terminal"
     );
   }
+}
+async function readHiddenInput(prompt, input = process.stdin, output = process.stderr) {
+  assertHiddenInputAvailable(input, output);
   output.write(prompt);
   const wasRaw = input.isRaw === true;
   return new Promise((resolve, reject) => {
@@ -40170,10 +40283,13 @@ var PlaintextFileSecretStore = class {
 
 // src/cli.ts
 function usage() {
-  throw new ShareNoteError("invalid_request", "Usage: share-note.mjs <action> --request <json-file>");
+  throw new ShareNoteError("invalid_request", "Usage: share-note.mjs <action> --request <json-file>, or share-note.mjs setup-browser");
 }
 async function requestFromArguments(arguments_) {
   const [action, flag, requestPath, ...rest] = arguments_;
+  if (action === "setup-browser" && arguments_.length === 1) {
+    return { action, request: { profile: "public", service: "public", projectRoot: process.cwd() } };
+  }
   if (!action || flag !== "--request" || !requestPath || rest.length > 0) usage();
   const resolved = path11.resolve(requestPath);
   const contents = await readFile5(resolved, "utf8");
@@ -40198,6 +40314,38 @@ async function main() {
     case "setup":
       result = await application.setup(request);
       break;
+    case "setup-browser": {
+      const environmentKey = process.env[BROWSER_API_KEY_ENV_VAR];
+      delete process.env[BROWSER_API_KEY_ENV_VAR];
+      try {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          let prompted = false;
+          try {
+            result = await application.setupBrowser(
+              request,
+              async () => {
+                if (environmentKey) return environmentKey;
+                prompted = true;
+                process.stderr.write("在浏览器完成人机验证后，将页面显示的 API key 粘贴到下方。输入不会回显；Ctrl+C 后可重跑此命令继续。\n");
+                return readHiddenInput("Share Note API key: ");
+              },
+              () => {
+                if (!environmentKey) assertHiddenInputAvailable();
+              }
+            );
+            break;
+          } catch (error) {
+            if (!(error instanceof ShareNoteError) || error.code !== "authentication_failed" && error.code !== "credential_missing" || !prompted || attempt === 2) {
+              throw error;
+            }
+            process.stderr.write("API key 验证失败，尚未保存。请重新复制同一授权页面上的 key。\n");
+          }
+        }
+      } finally {
+        delete process.env[BROWSER_API_KEY_ENV_VAR];
+      }
+      break;
+    }
     case "setup-browser-start":
       result = await application.setupBrowserStart(request);
       break;

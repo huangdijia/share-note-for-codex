@@ -4,19 +4,23 @@ import path from 'node:path'
 import {
   BROWSER_API_KEY_ENV_VAR,
   ShareNoteApplication,
+  type SetupBrowserRequest,
   type SetupBrowserCompleteRequest
 } from './app.js'
 import { ShareNoteError, toSafeError } from './errors.js'
 import { userDataDirectory } from './platform/paths.js'
-import { readHiddenInput } from './platform/hidden-input.js'
+import { assertHiddenInputAvailable, readHiddenInput } from './platform/hidden-input.js'
 import { PlaintextFileSecretStore } from './secrets/plaintext-file.js'
 
 function usage(): never {
-  throw new ShareNoteError('invalid_request', 'Usage: share-note.mjs <action> --request <json-file>')
+  throw new ShareNoteError('invalid_request', 'Usage: share-note.mjs <action> --request <json-file>, or share-note.mjs setup-browser')
 }
 
 async function requestFromArguments(arguments_: string[]): Promise<{ action: string; request: Record<string, unknown> }> {
   const [action, flag, requestPath, ...rest] = arguments_
+  if (action === 'setup-browser' && arguments_.length === 1) {
+    return { action, request: { profile: 'public', service: 'public', projectRoot: process.cwd() } }
+  }
   if (!action || flag !== '--request' || !requestPath || rest.length > 0) usage()
   const resolved = path.resolve(requestPath)
   const contents = await readFile(resolved, 'utf8')
@@ -42,6 +46,40 @@ async function main(): Promise<void> {
     case 'setup':
       result = await application.setup(request as never)
       break
+    case 'setup-browser': {
+      const environmentKey = process.env[BROWSER_API_KEY_ENV_VAR]
+      delete process.env[BROWSER_API_KEY_ENV_VAR]
+      try {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          let prompted = false
+          try {
+            result = await application.setupBrowser(
+              request as unknown as SetupBrowserRequest,
+              async () => {
+                if (environmentKey) return environmentKey
+                prompted = true
+                process.stderr.write('在浏览器完成人机验证后，将页面显示的 API key 粘贴到下方。输入不会回显；Ctrl+C 后可重跑此命令继续。\n')
+                return readHiddenInput('Share Note API key: ')
+              },
+              () => { if (!environmentKey) assertHiddenInputAvailable() }
+            )
+            break
+          } catch (error) {
+            if (
+              !(error instanceof ShareNoteError) ||
+              (error.code !== 'authentication_failed' && error.code !== 'credential_missing') ||
+              !prompted || attempt === 2
+            ) {
+              throw error
+            }
+            process.stderr.write('API key 验证失败，尚未保存。请重新复制同一授权页面上的 key。\n')
+          }
+        }
+      } finally {
+        delete process.env[BROWSER_API_KEY_ENV_VAR]
+      }
+      break
+    }
     case 'setup-browser-start':
       result = await application.setupBrowserStart(request as never)
       break

@@ -36,7 +36,38 @@ Start a new Codex conversation after install so the Skill is discovered. The rep
 
 ## First setup
 
-The recommended setup has two local steps. It keeps the generated UID, authorization URL, browser page, and API key out of request files and ordinary output.
+Run this command in an interactive terminal from the project you want to bind:
+
+```bash
+node /absolute/path/to/share-note.mjs setup-browser
+```
+
+This shortcut uses the public service and the `public` profile, with the current directory as the project root. For a new profile, that directory becomes its allowed source root. Existing profile source restrictions are preserved.
+
+The command automatically reuses a matching, valid credential or opens the system browser for a new authorization. Complete the normal human verification, then paste the displayed API key into the terminal once (input is hidden). It verifies authentication using an empty `check-files` request **before saving**, then binds the project. There is no separate completion, doctor or project-configuration command. Incorrect keys are not saved; the interactive command allows up to three attempts using the same authorization page.
+
+For explicit project/profile selection, use one non-secret request:
+
+```json
+{
+  "profile": "public",
+  "service": "public",
+  "projectRoot": "/absolute/path/to/project",
+  "allowedSourceRoots": ["/absolute/path/to/project/docs"]
+}
+```
+
+```bash
+node /absolute/path/to/share-note.mjs setup-browser --request /absolute/path/to/browser-setup.json
+```
+
+`allowedSourceRoots` may be omitted: existing profile roots are preserved, otherwise the project root is used. For self-hosting, add `projectRoot` to the explicitly confirmed self-hosted request below and call `setup-browser` with it.
+
+Rerun the same command after an interruption to resume an unexpired matching pending setup without reopening the browser. A successful rerun validates and reuses the saved credential without prompting. Network errors, a changed source configuration, a corrupt configuration, or a project bound to another profile stop the flow. An existing rejected credential is never silently replaced with a new identity. If local project binding fails after the credential was saved, rerun the command to reuse that credential and finish binding. An already installed plugin must be refreshed from this checkout to use the new bundle.
+
+### Two-step setup and recovery
+
+The original two-step commands remain available. They keep the generated UID, authorization URL, browser page, and API key out of request files and ordinary output.
 
 First create a non-secret request for the public service, then start browser setup:
 
@@ -64,7 +95,7 @@ Then use a second request containing only the profile:
 node /absolute/path/to/share-note.mjs setup-browser-complete --request /absolute/path/to/browser-complete.json
 ```
 
-`setup-browser-complete` prompts in the local TTY for the displayed API key without echoing it. The key does not enter the request file, arguments, JSON result, logs, or persisted profile; after setup it is deliberately written as plaintext to a private `0600` file in the user-data directory. To abandon a pending setup, use `{ "profile": "public", "cancel": true }`; this deletes it without prompting.
+`setup-browser-complete` prompts in the local TTY for the displayed API key without echoing it. The key does not enter the request file, arguments, JSON result, logs, or persisted profile; after a successful authentication check it is deliberately written as plaintext to a private `0600` file in the user-data directory. To abandon a pending setup, use `{ "profile": "public", "cancel": true }`; this deletes it without prompting.
 
 For a self-hosted instance, the user must deliberately type and confirm both origins independently. They may be equal, but neither is inferred or substituted:
 
@@ -84,7 +115,7 @@ The confirmation fields must exactly equal the normalized origins. A browser lau
 
 The existing `setup` action remains available to import a credential already obtained through a legitimate flow. Its request still contains only non-secret paths and the name of a process-scoped credential environment variable; do not put a UID or API key in a request file.
 
-Then run doctor with a small JSON request containing only the profile. Doctor sends an authenticated empty `check-files` request and never creates a note.
+After a legacy credential import, run doctor with a small JSON request containing only the profile. Browser completion already performs this check before saving. Doctor sends an authenticated empty `check-files` request and never creates a note.
 
 ## Configure a project
 
@@ -107,15 +138,15 @@ To copy matching records from the legacy user-level registry without deleting th
 
 ## Actions
 
-Every invocation has this shape:
+Request-file invocations have this shape (`setup-browser` also supports the no-request shortcut above):
 
 ```bash
 node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/request.json
 ```
 
-Supported actions are `setup`, `setup-browser-start`, `setup-browser-complete`, `doctor`, `configure-project`, `preview`, `publish`, `read`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, service origins, and explicit write authorization—not secrets, browser-returned keys, or note bodies.
+Supported actions are `setup`, `setup-browser`, `setup-browser-start`, `setup-browser-complete`, `doctor`, `configure-project`, `preview`, `publish`, `read`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, service origins, and explicit write authorization—not secrets, browser-returned keys, or note bodies.
 
-No master-password environment variable is required. Setup and doctor remain profile-scoped. Every document action (`preview`, `publish`, `read`, `update`, `list`, and `delete`) requires an absolute `projectRoot`; the profile is loaded from that project's manifest. These actions reject the legacy top-level `profile` and `workspaceRoot` fields, and source paths must be relative to `projectRoot`.
+No master-password environment variable is required. Legacy setup and doctor remain profile-scoped; `setup-browser` also binds the requested project. Every document action (`preview`, `publish`, `read`, `update`, `list`, and `delete`) requires an absolute `projectRoot`; the profile is loaded from that project's manifest. These actions reject the legacy top-level `profile` and `workspaceRoot` fields, and source paths must be relative to `projectRoot`.
 
 Preview returns the resolved profile, API/Web origins, and `projectBindingHash`. Publish and update authorization must echo that profile and binding hash together with the exact content hash. This invalidates authorization if the project target changes after preview.
 

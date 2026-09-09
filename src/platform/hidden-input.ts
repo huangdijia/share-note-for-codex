@@ -2,17 +2,24 @@ import { ShareNoteError } from '../errors.js'
 
 const MAXIMUM_HIDDEN_INPUT_CHARACTERS = 16_384
 
-export async function readHiddenInput(
-  prompt: string,
+export function assertHiddenInputAvailable(
   input: NodeJS.ReadStream = process.stdin,
   output: NodeJS.WriteStream = process.stderr
-): Promise<string> {
+): void {
   if (!input.isTTY || !output.isTTY || typeof input.setRawMode !== 'function') {
     throw new ShareNoteError(
       'secure_store_unavailable',
       'Hidden setup input requires an interactive local terminal'
     )
   }
+}
+
+export async function readHiddenInput(
+  prompt: string,
+  input: NodeJS.ReadStream = process.stdin,
+  output: NodeJS.WriteStream = process.stderr
+): Promise<string> {
+  assertHiddenInputAvailable(input, output)
   output.write(prompt)
   const wasRaw = input.isRaw === true
   return new Promise<string>((resolve, reject) => {
