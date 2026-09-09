@@ -144,13 +144,17 @@ export class ConfigStore {
   }
 
   async load(name: string): Promise<ProfileConfig> {
+    const profile = await this.find(name)
+    if (!profile) throw new ShareNoteError('configuration_missing', `Profile ${name} is not configured`)
+    return profile
+  }
+
+  async find(name: string): Promise<ProfileConfig | undefined> {
     const safeName = validateProfileName(name)
     const value = await readJsonFile(this.pathFor(safeName)).catch((error: unknown) => {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        throw new ShareNoteError('configuration_missing', `Profile ${safeName} is not configured`)
-      }
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
       throw error
     })
-    return assertProfile(value, safeName)
+    return value === undefined ? undefined : assertProfile(value, safeName)
   }
 }

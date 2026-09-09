@@ -1,0 +1,5 @@
+{
+  "profile": "public",
+  "service": "public",
+  "projectRoot": "/absolute/path/to/project"
+}

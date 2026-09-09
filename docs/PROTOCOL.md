@@ -32,7 +32,7 @@ The API and web origins are configured separately. Credentials are sent only to 
 | `GET /v1/account/get-key?id=<random UID>` | user-driven browser initialization only | no credential header; no automatic retry or fallback |
 | `GET <share URL>` | read or verify page | limited retry, exact approved web origin only |
 
-`GET /v1/account/get-key` is an interactive initialization route that can include a human-verification step and an Obsidian redirect. `setup-browser-start` may open only the exact configured API-origin route with a cryptographically random, URL-encoded UID. It does not use the route for doctor, key rotation, recovery, DOM scraping, log reading, clipboard monitoring, or an Obsidian callback. `setup-browser-complete` receives the displayed key only through a local non-echoing terminal prompt.
+`GET /v1/account/get-key` is an interactive initialization route that can include a human-verification step and an Obsidian redirect. `setup-browser-start` may open only the exact configured API-origin route with a cryptographically random, URL-encoded UID. It does not use the route for doctor, key rotation, recovery, DOM scraping, log reading, clipboard monitoring, or an Obsidian callback. `setup-browser` combines authorization, local non-echoing token input, authenticated empty `check-files` validation, credential saving and project binding. `setup-browser-complete` remains available for a two-step flow and also validates before saving. Invalid keys remain unpersisted; a matching unexpired pending setup can be resumed. Neither flow automatically rotates an existing rejected credential.
 
 ## Create/update wire shape
 

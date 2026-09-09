@@ -146,7 +146,22 @@ export class PendingSetupStore {
     })
   }
 
-  async complete<T>(profile: string, operation: (pending: PendingBrowserSetup) => Promise<T>): Promise<T> {
+  async find(profile: string): Promise<PendingBrowserSetup | undefined> {
+    return withLocalLock(this.dataDirectory, `pending-setup:${validateProfileName(profile)}`, async () => {
+      const pending = await this.read(profile)
+      if (pending && Date.parse(pending.expiresAt) <= this.now()) {
+        await rm(this.pathFor(profile), { force: true })
+        return undefined
+      }
+      return pending
+    })
+  }
+
+  async complete<T>(
+    profile: string,
+    operation: (pending: PendingBrowserSetup) => Promise<T>,
+    expectedBindingHash?: string
+  ): Promise<T> {
     const safeProfile = validateProfileName(profile)
     return withLocalLock(this.dataDirectory, `pending-setup:${safeProfile}`, async () => {
       const pending = await this.read(safeProfile)
@@ -154,6 +169,9 @@ export class PendingSetupStore {
       if (Date.parse(pending.expiresAt) <= this.now()) {
         await rm(this.pathFor(safeProfile), { force: true })
         throw new ShareNoteError('configuration_missing', 'Pending browser setup expired; start again')
+      }
+      if (expectedBindingHash !== undefined && pending.bindingHash !== expectedBindingHash) {
+        throw new ShareNoteError('conflict', 'Pending browser setup changed while waiting for input; run setup-browser again')
       }
       const result = await operation(pending)
       await rm(this.pathFor(safeProfile), { force: true })
