@@ -199,7 +199,9 @@ Run `node /absolute/path/to/share-note.mjs themes` to list the built-in styles w
 
 Set `"defaultTheme": "technical"` through `configure-project` for a project default. On an already configured project, omit `profile` to preserve its binding. This changes the default for new previews only and preserves records and operations. Existing projects without this field use `simple` for new shares.
 
-Add `"theme": "reading"` to a `preview` request for a one-time override. The result includes `theme` (the actual theme identifier) and `themeName` (display name). A legacy unthemed update preview reports `theme: null`. Publish uses that preview exactly; changing a theme requires a new preview and its new content hash. Normal sharing uses the default without an extra style confirmation.
+Add `"theme": "reading"` to a `preview` request for a one-time override. The result includes `theme` (the actual theme identifier) and `themeName` (display name). A legacy unthemed update preview reports `theme: null`. Publish uses that preview exactly; changing a theme requires a new preview and its new content hash.
+
+For new publications through Codex, the agent asks you to choose simple, technical, reading, or dark before creating the preview, recommending the project default (or `simple`). It uses Codex's interactive question tool when available, otherwise a conversation question, and waits for your choice. Say “share with the reading style” or “use the default style” to skip the question. A one-time choice does not change the project default or authorize an upload. Direct CLI and preview-only requests keep their default behavior; updates preserve the existing style unless you request a change.
 
 For updates, include the target `recordId` in the **preview** request as well as the update request. The source must match that project's record. Without an explicit theme, the preview preserves the record's style, regardless of the current project default. A legacy record without a theme retains its original unthemed body format; explicitly selecting a built-in theme migrates it. Previews created by older clients must be regenerated.
 

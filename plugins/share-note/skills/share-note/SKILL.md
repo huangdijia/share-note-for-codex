@@ -45,6 +45,8 @@ Interpret client results literally:
 
 ## Style requests
 
-Use `themes` to list built-in styles without credentials or a project. Map 简洁/simple, 技术/technical, 阅读/reading and 深色/dark to their exact IDs. “用阅读样式分享” sets `theme: "reading"` on preview; “项目默认设为技术样式” calls `configure-project` with `projectRoot` and `defaultTheme: "technical"`, preserving the existing profile. Do not ask an extra style question for ordinary shares: new shares use the project default or `simple`.
+Use `themes` to list built-in styles without credentials or a project. Map 简洁/simple, 技术/technical, 阅读/reading and 深色/dark to their exact IDs. “用阅读样式分享” sets `theme: "reading"` on preview; “项目默认设为技术样式” calls `configure-project` with `projectRoot` and `defaultTheme: "technical"`, preserving the existing profile.
+
+Before previewing a new share for publication, follow the interactive style selection in `references/publish.md`. Skip the question when the user has already chosen a style or explicitly requested the default, including a still-applicable instruction from earlier in the conversation. Selecting a style does not grant upload authorization or change the project default.
 
 For update previews, always include the target `recordId` and matching source path. Omit `theme` to preserve the record's style, including the legacy unthemed format. Only an explicit style request migrates a legacy article. Show the actual preview theme with its hash; publish/update never select a theme again. Theme changes require a fresh preview. Built-in styles apply only to the article area and allow no custom CSS or remote resources.
