@@ -1,5 +1,7 @@
 # Share Note
 
+![Share Note — 在 Codex 中分享 Markdown 笔记](docs/assets/readme-banner.png)
+
 [English](README.md) | [简体中文](README_CN.md)
 
 Share Note 是一款本地 Codex 插件，通过内置 HTTP 客户端预览、发布、读取、更新、列出和删除 Share Note 页面。它不会安装或调用 Obsidian，不使用 Obsidian CLI、URI 或笔记库状态，不启动常驻服务，也不会在运行时安装依赖。

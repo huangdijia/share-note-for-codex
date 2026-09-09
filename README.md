@@ -1,5 +1,7 @@
 # Share Note
 
+![Share Note — Markdown sharing for Codex](docs/assets/readme-banner.png)
+
 [English](README.md) | [简体中文](README_CN.md)
 
 Share Note is a local Codex plugin that previews, publishes, reads, updates, lists, and deletes Share Note pages through a bundled HTTP client. It does not install or call Obsidian, use Obsidian CLI/URI/vault state, start a resident service, or install dependencies at runtime.
