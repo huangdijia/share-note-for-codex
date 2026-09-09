@@ -19,7 +19,7 @@ The automated suite uses Node.js, frozen page-ciphertext fixtures, temporary use
 | A01 | Local package passed; actual Codex install not executed | Bundle was copied to a clean temp directory with no `node_modules` and ran successfully. Source/bundle scan found no Obsidian integration or resident server. Marketplace installation itself remains unexecuted. |
 | A02 | Passed | Missing credential fails with `credential_missing`, sends no request, and does not ask for chat plaintext or auto-register. |
 | A03 | Passed by routing/static checks | Routing Skill explicitly says content creation is not upload authorization; no generic content-generation action exists in the client. |
-| A04 | Passed | Preview tests show zero network requests; embedded resources block publication. |
+| A04 | Passed | Preview tests show zero network requests; validated local raster images are embedded in encrypted content, while remote images and active resources block publication. |
 | A05 | Passed | Chinese, emoji, table, fenced code and a surrogate pair at the chunk boundary round-trip. |
 | A06 | Mock passed; live not executed | Raw mock page contains ciphertext rather than body plaintext; complete fragment URL decrypts and read-back hash matches. |
 | A07 | Passed | Missing/wrong keys fail explicitly and do not return an empty note or plaintext fallback. |

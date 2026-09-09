@@ -64,9 +64,13 @@ function previewDocument(title: string, bodyHtml: string): string {
 </html>`
 }
 
-function markdownToHtml(markdown: string, resources: string[]): string {
+function markdownToHtml(markdown: string, resources: string[], images: ReadonlyMap<string, string>): string {
   const renderer = new Renderer()
   renderer.html = ({ text }) => escapeHtml(text)
+  renderer.image = ({ href, text, title }) => {
+    const src = images.get(href)
+    return src ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(text)}"${title ? ` title="${escapeHtml(title)}"` : ''}>` : escapeHtml(text)
+  }
   const output = marked.parse(markdown, {
     async: false,
     gfm: true,
@@ -83,12 +87,13 @@ export function renderDocument(
   source: string,
   format: SourceFormat,
   fallbackTitle: string,
-  theme: ThemeId | null = DEFAULT_THEME
+  theme: ThemeId | null = DEFAULT_THEME,
+  images: ReadonlyMap<string, string> = new Map()
 ): RenderedDocument {
   const resources: string[] = []
   let rendered: string
   if (format === 'markdown') {
-    rendered = markdownToHtml(source, resources)
+    rendered = markdownToHtml(source, resources, images)
   } else {
     resources.push(...resourceDescriptions(source))
     rendered = source
@@ -96,9 +101,10 @@ export function renderDocument(
   const safeHtml = sanitizeStaticHtml(rendered)
   const title = titleFromHtml(safeHtml, fallbackTitle)
   const sensitive = sensitiveFindings(source)
+  const blockedResources = resources.filter((resource) => !images.has(resource))
   const warnings = [
-    ...(resources.length > 0
-      ? ['Embedded images or active resources are not uploaded or fetched; publication is blocked.']
+    ...(blockedResources.length > 0
+      ? ['Unsupported images or active resources are not uploaded or fetched; publication is blocked.']
       : []),
     ...(sensitive.length > 0
       ? [`Potential sensitive material was detected (${sensitive.join(', ')}); publication is blocked pending source cleanup.`]
@@ -114,7 +120,7 @@ export function renderDocument(
     wordCount: countWords(plainText),
     resources: [...new Set(resources)],
     warnings,
-    publishable: resources.length === 0 && sensitive.length === 0,
+    publishable: blockedResources.length === 0 && sensitive.length === 0,
     theme
   }
 }

@@ -4,6 +4,8 @@ import type { AddressInfo } from 'node:net'
 import { PROTOCOL_PROFILE, type NoteTemplate } from '../../src/protocol/profile.js'
 
 export interface MockBehavior {
+  dropUploadResponse: boolean
+  uploadReturnsDifferentOrigin: boolean
   dropCreateResponse: boolean
   createReturnsDifferentUrl: boolean
   deleteKeepsPage: boolean
@@ -26,6 +28,8 @@ interface StoredNote {
 }
 
 const DEFAULT_BEHAVIOR: MockBehavior = {
+  dropUploadResponse: false,
+  uploadReturnsDifferentOrigin: false,
   dropCreateResponse: false,
   createReturnsDifferentUrl: false,
   deleteKeepsPage: false,
@@ -51,7 +55,7 @@ function renderPage(template: NoteTemplate): string {
   if (template.encrypted) {
     return `<!doctype html><html><head><title></title></head><body><main class="markdown-preview-sizer"><div id="template-user-data">Encrypted note</div></main><div id="encrypted-data" style="display:none">${template.content}</div></body></html>`
   }
-  return `<!doctype html><html><head><title>${escapeHtml(template.title ?? '')}</title></head><body><main class="markdown-preview-sizer">${template.content}</main></body></html>`
+  return `<!doctype html><html><head><title>${escapeHtml(template.title ?? '')}</title></head><body><main class="markdown-preview-sizer">\n<div></div>\n${template.content}\n</main></body></html>`
 }
 
 async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
@@ -64,6 +68,7 @@ export class MockShareNoteServer {
   readonly uid = 'mock-user'
   readonly apiKey = 'mock-api-key'
   readonly requestLog: MockRequestLog[] = []
+  private readonly images = new Map<string, { bytes: Buffer; hash: string; filetype: string; url: string }>()
   private readonly notes = new Map<string, StoredNote>()
   private readonly server = createServer((request, response) => {
     void this.handle(request, response).catch((error: unknown) => {
@@ -145,6 +150,12 @@ export class MockShareNoteServer {
     this.log(request, url.pathname)
 
     if (request.method === 'GET') {
+      const image = [...this.images.values()].find((item) => new URL(item.url).pathname === url.pathname)
+      if (image) {
+        response.writeHead(200, { 'content-type': `image/${image.filetype}`, 'content-length': String(image.bytes.length) })
+        response.end(image.bytes)
+        return
+      }
       const filename = url.pathname.slice(1)
       const note = this.notes.get(filename)
       if (!note || (note.deleted && note.cachedReadsRemaining <= 0)) {
@@ -165,8 +176,29 @@ export class MockShareNoteServer {
     }
 
     if (url.pathname === PROTOCOL_PROFILE.routes.doctor) {
-      await readJson(request)
-      this.json(response, 200, { success: true, files: [] })
+      const body = await readJson(request)
+      const requested = Array.isArray(body.files) ? body.files as Array<{ hash: string; filetype: string }> : []
+      this.json(response, 200, { success: true, files: requested.flatMap((item) => {
+        const image = this.images.get(`${item.hash}.${item.filetype}`)
+        return image ? [{ hash: image.hash, filetype: image.filetype, url: image.url }] : []
+      }) })
+      return
+    }
+
+    if (url.pathname === '/v1/file/upload') {
+      const chunks: Buffer[] = []
+      for await (const chunk of request) chunks.push(Buffer.from(chunk))
+      const bytes = Buffer.concat(chunks)
+      const hash = createHash('sha1').update(bytes).digest('hex')
+      const filetype = String(request.headers['x-sharenote-filetype'])
+      if (hash !== request.headers['x-sharenote-hash'] || String(bytes.length) !== request.headers['x-sharenote-bytelength']) {
+        this.json(response, 400, { error: 'upload metadata mismatch' })
+        return
+      }
+      const assetUrl = `${this.origin}/files/abc/${hash}.${filetype}`
+      this.images.set(`${hash}.${filetype}`, { bytes, hash, filetype, url: assetUrl })
+      if (this.behavior.dropUploadResponse) { request.socket.destroy(); return }
+      this.json(response, 200, { url: this.behavior.uploadReturnsDifferentOrigin ? `https://evil.invalid/files/abc/${hash}.${filetype}` : assetUrl })
       return
     }
 

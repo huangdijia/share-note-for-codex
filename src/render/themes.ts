@@ -209,12 +209,16 @@ export function themeCss(theme: ThemeId): string {
   return `${COMMON_CSS.trim()}\n${THEME_CSS[theme].trim()}`
 }
 
+function imageCss(html: string): string {
+  return /<img\s/i.test(html) ? '\n.share-note-article img { max-width: 100%; height: auto; }' : ''
+}
+
 export function themedArticle(bodyHtml: string, theme: ThemeId): string {
-  return `<article class="share-note-article" data-share-note-theme="${theme}"><style>${themeCss(theme)}</style><div class="share-note-content">${bodyHtml}</div></article>`
+  return `<article class="share-note-article" data-share-note-theme="${theme}"><style>${themeCss(theme)}${imageCss(bodyHtml)}</style><div class="share-note-content">${bodyHtml}</div></article>`
 }
 
 export function matchesThemedArticle(fragment: string, theme: ThemeId): boolean {
-  const prefix = `<article class="share-note-article" data-share-note-theme="${theme}"><style>${themeCss(theme)}</style><div class="share-note-content">`
+  const prefix = `<article class="share-note-article" data-share-note-theme="${theme}"><style>${themeCss(theme)}${imageCss(fragment)}</style><div class="share-note-content">`
   return fragment.startsWith(prefix) && fragment.endsWith('</div></article>')
 }
 

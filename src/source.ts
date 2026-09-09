@@ -18,12 +18,12 @@ function inside(root: string, target: string): boolean {
   return relative === '' || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative))
 }
 
-export async function readSafeSource(
+export async function readSafeFile(
   sourcePath: string,
   projectRoot: string,
   allowedSourceRoots: string[],
   maximumBytes: number
-): Promise<SafeSource> {
+): Promise<Omit<SafeSource, 'content'> & { buffer: Buffer }> {
   if (typeof sourcePath !== 'string' || !sourcePath || path.isAbsolute(sourcePath)) {
     throw new ShareNoteError('invalid_request', 'sourcePath must be relative to projectRoot')
   }
@@ -51,14 +51,24 @@ export async function readSafeSource(
     })
   }
   const buffer = await readFile(resolved)
-  const content = new TextDecoder('utf-8', { fatal: true }).decode(buffer)
+  if (buffer.byteLength > maximumBytes) throw new ShareNoteError('source_blocked', 'Source exceeds the configured size limit')
   return {
     requestedPath,
     realPath: resolved,
     projectRelativePath: path.relative(resolvedProjectRoot, resolved).split(path.sep).join('/'),
-    content,
+    buffer,
     sourceHash: createHash('sha256').update(buffer).digest('hex'),
     bytes: buffer.byteLength,
     symbolicLink: requestedInfo.isSymbolicLink()
   }
+}
+
+export async function readSafeSource(
+  sourcePath: string,
+  projectRoot: string,
+  allowedSourceRoots: string[],
+  maximumBytes: number
+): Promise<SafeSource> {
+  const { buffer, ...source } = await readSafeFile(sourcePath, projectRoot, allowedSourceRoots, maximumBytes)
+  return { ...source, content: new TextDecoder('utf-8', { fatal: true }).decode(buffer) }
 }

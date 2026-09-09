@@ -16,7 +16,7 @@ Share Note 是一款本地 Codex 插件，通过内置 HTTP 客户端预览、�
 - 仓库内的本地插件市场：`.agents/plugins/marketplace.json`
 - 锁定的构建依赖、模拟测试与契约测试、协议测试夹具，以及安全和验收文档
 
-本插件不包含 MCP 服务器、守护进程或后台同步，不会动态执行 `npm install`、执行任意网页内容或上传用户附件。本地密钥明确采用明文存储；发布时仅支持加密 Share Note 页面正文。
+本插件不包含 MCP 服务器、守护进程或后台同步，不会动态执行 `npm install`、执行任意网页内容或在后台上传附件。本地密钥明确采用明文存储；新建分享默认使用加密正文，已有主题页面可在明确授权后更新为公开模式，并独立上传图片。
 
 ## 用自然语言安装
 
@@ -190,9 +190,11 @@ node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/reque
 
 通过 Codex 新建分享时，Agent 会在生成预览前让你从内置样式中选择，并推荐项目默认样式（未配置时为 `simple`）。优先使用 Codex 交互式提问工具，不可用时通过对话询问，等待选择后再继续。直接说“用阅读样式分享”或“使用默认样式”可以跳过询问。本次选择不会修改项目默认样式，也不代表授权上传；可另行说“项目默认设为技术样式”保存默认值。直接调用 CLI 或仅请求预览时仍可使用默认样式；更新已有分享时，除非明确要求更换，否则保留原样式。
 
-发布和更新始终需要新的预览，以及与准确哈希绑定的授权。加密发布是唯一的写入模式。客户端会在首次创建请求前保存项目笔记密钥和待处理操作，不会盲目重试结果不明确的写入，并报告以下状态之一：`verified`、`submitted_unverified`、`unknown`、`failed`、`blocked` 或 `already_absent`。
+发布和更新始终需要新的预览，以及与准确哈希绑定的授权。新建分享使用加密发布。已有主题页面还支持在明确授权后更新为公开模式并独立上传图片，不会因此改变配置档案的默认模式。客户端会在首次创建请求前保存项目笔记密钥和待处理操作，不会盲目重试结果不明确的写入，并报告以下状态之一：`verified`、`submitted_unverified`、`unknown`、`failed`、`blocked` 或 `already_absent`。
 
-`list` 的作用域为 `scope: "project"`，不代表列出远程账户的全部内容。删除操作会保留本地源文件、项目审计记录和项目密钥。包含图片或其他用户附件时会阻止发布，因为 Share Note 的正文加密不覆盖这些内容。
+`list` 的作用域为 `scope: "project"`，不代表列出远程账户的全部内容。删除操作会保留本地源文件、项目审计记录和项目密钥。默认将 Markdown 图片语法引用的本地 PNG、JPEG、GIF 和 WebP 图片以内嵌 data URI 的形式放入加密正文；明确授权的公开更新会独立上传这些图片，并将返回的图片 URL 写入正文。图片路径相对于源文档解析，必须位于项目及配置的允许目录内，符号链接目标同样受检查。源文档与图片字节共用配置的源文件大小限制，重复引用同一图片会按出现次数累计。发布和更新前会重新检查图片，预览后图片发生变化时必须重新预览。远程图片 URL、SVG、原始 HTML 图片标签和主动嵌入内容仍会阻止发布。
+
+转换已有主题分享时，可以对 Codex 说：“更新 README_CN.md 并改为公开模式，图片独立上传。”预览使用 `encryption: "public"` 和 `imageMode: "upload"`，更新授权必须与这两个字段、预览哈希及目标记录一致。公开页面和图片 URL 无需片段密钥即可读取。后续更新默认保留该记录的模式。删除笔记后，已上传图片可能继续存在；上游删除接口不删除图片附件。
 
 ## 文章样式
 
@@ -215,7 +217,7 @@ node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/reque
 
 在 `preview` 请求中加入 `"theme": "reading"` 可单次覆盖默认值。自然语言“Typora”映射为 `typora-github`，“Obsidian”映射为 `obsidian`；深色变体需明确指定 `typora-night` 或 `obsidian-dark`。结果会返回实际 `theme` 和显示名称 `themeName`。更新时，预览请求也必须包含目标 `recordId`；若未明确选择新样式，则保留该记录的样式，不受当前项目默认值影响。旧版无主题记录仍保持原格式，只有明确选择内置样式时才迁移。
 
-本地预览和加密在线正文使用相同的已清理内容、可信作用域 CSS 与文章容器。这些仅是文章视觉适配，不会安装、调用或集成 GitHub、Typora 或 Obsidian 应用，也不会扩展 Markdown 语法。所有样式仅使用本机系统字体，不下载字体、图片或外部 CSS。`github` 基于固定版本的 `github-markdown-css` 源码按 MIT 许可证派生，归属信息见 `THIRD_PARTY_NOTICES.md`；Typora 与 Obsidian 命名样式均为独立视觉适配。自定义 CSS、语法高亮和 Mermaid 仍不受支持，HTML/Markdown 读取结果也不会带回主题 CSS。
+本地预览和在线正文使用已清理内容、可信作用域 CSS 与文章容器。公开更新会将预览图片替换成已验证的独立图片 URL，再核验上传后的文章内容。这些仅是文章视觉适配，不会安装、调用或集成 GitHub、Typora 或 Obsidian 应用，也不会扩展 Markdown 语法。所有样式仅使用本机系统字体，不下载字体、图片或外部 CSS。`github` 基于固定版本的 `github-markdown-css` 源码按 MIT 许可证派生，归属信息见 `THIRD_PARTY_NOTICES.md`；Typora 与 Obsidian 命名样式均为独立视觉适配。自定义 CSS、语法高亮和 Mermaid 仍不受支持，HTML/Markdown 读取结果也不会带回主题 CSS。
 
 ## 运行时数据
 
@@ -235,4 +237,4 @@ node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/reque
 
 冻结的协议配置和上游提交记录见 `docs/PROTOCOL.md`。安全边界见 `docs/SECURITY.md`；A01–A22 的验收结果见 `docs/ACCEPTANCE.md`。
 
-所有已报告的远程流程测试均使用进程内模拟服务和确定性协议测试夹具。**由于未提供真实服务凭据，尚未执行公共或自托管目标实例上的 `doctor`、发布、更新、删除、CDN 行为、全新环境中的插件市场安装以及在线兼容性验证。此处不代表已完成版本发布或插件市场上架。**
+自动化测试使用进程内模拟服务和确定性协议测试夹具。公共服务的独立图片上传实测见[测试报告](docs/experiments/independent-image-upload.md)，报告区分字节回读验证与浏览器显示验证。此处不代表通用自托管兼容性、全新环境安装、版本发布或插件市场上架已经完成。

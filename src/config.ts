@@ -18,7 +18,7 @@ export interface ProfileConfig {
   protocolProfile: typeof PROTOCOL_PROFILE.id
   defaultEncryption: true
   allowedSourceRoots: string[]
-  embeddedAssetsPolicy: 'block'
+  embeddedAssetsPolicy: 'inline-local-images' | 'block'
   allowUnencryptedPublish: false
   allowInsecureLoopback: boolean
   maxSourceBytes: number
@@ -97,7 +97,7 @@ export async function buildProfileConfig(
     protocolProfile: PROTOCOL_PROFILE.id,
     defaultEncryption: true,
     allowedSourceRoots: await normalizeRoots(input.allowedSourceRoots),
-    embeddedAssetsPolicy: 'block',
+    embeddedAssetsPolicy: 'inline-local-images',
     allowUnencryptedPublish: false,
     allowInsecureLoopback,
     maxSourceBytes,
@@ -115,7 +115,7 @@ function assertProfile(value: unknown, expectedName: string): ProfileConfig {
     typeof profile.webBaseUrl !== 'string' ||
     profile.protocolProfile !== PROTOCOL_PROFILE.id ||
     profile.defaultEncryption !== true ||
-    profile.embeddedAssetsPolicy !== 'block' ||
+    !['block', 'inline-local-images'].includes(profile.embeddedAssetsPolicy ?? '') ||
     profile.allowUnencryptedPublish !== false ||
     !Array.isArray(profile.allowedSourceRoots) ||
     !profile.credentialRef ||

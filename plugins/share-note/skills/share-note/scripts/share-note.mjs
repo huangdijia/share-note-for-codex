@@ -5667,27 +5667,27 @@ var require_util = __commonJS({
       };
     }
     var normalize = lruMemoize(function normalize2(aPath) {
-      var path12 = aPath;
+      var path13 = aPath;
       var url = urlParse(aPath);
       if (url) {
         if (!url.path) {
           return aPath;
         }
-        path12 = url.path;
+        path13 = url.path;
       }
-      var isAbsolute = exports.isAbsolute(path12);
+      var isAbsolute = exports.isAbsolute(path13);
       var parts = [];
       var start = 0;
       var i = 0;
       while (true) {
         start = i;
-        i = path12.indexOf("/", start);
+        i = path13.indexOf("/", start);
         if (i === -1) {
-          parts.push(path12.slice(start));
+          parts.push(path13.slice(start));
           break;
         } else {
-          parts.push(path12.slice(start, i));
-          while (i < path12.length && path12[i] === "/") {
+          parts.push(path13.slice(start, i));
+          while (i < path13.length && path13[i] === "/") {
             i++;
           }
         }
@@ -5708,15 +5708,15 @@ var require_util = __commonJS({
           }
         }
       }
-      path12 = parts.join("/");
-      if (path12 === "") {
-        path12 = isAbsolute ? "/" : ".";
+      path13 = parts.join("/");
+      if (path13 === "") {
+        path13 = isAbsolute ? "/" : ".";
       }
       if (url) {
-        url.path = path12;
+        url.path = path13;
         return urlGenerate(url);
       }
-      return path12;
+      return path13;
     });
     exports.normalize = normalize;
     function join(aRoot, aPath) {
@@ -7408,11 +7408,11 @@ var require_previous_map = __commonJS({
     var { existsSync, readFileSync, realpathSync } = __require("fs");
     var { dirname, isAbsolute, join, relative, sep } = __require("path");
     var { SourceMapConsumer, SourceMapGenerator } = require_source_map();
-    function realPath(path12) {
+    function realPath(path13) {
       try {
-        return realpathSync(path12);
+        return realpathSync(path13);
       } catch {
-        return path12;
+        return path13;
       }
     }
     function fromBase64(str) {
@@ -7475,19 +7475,19 @@ var require_previous_map = __commonJS({
           this.annotation = this.getAnnotationURL(css.substring(start, end));
         }
       }
-      loadFile(path12, cssFile, trusted) {
+      loadFile(path13, cssFile, trusted) {
         if (!trusted && !this.unsafeMap) {
-          if (!/\.map$/i.test(path12)) return void 0;
+          if (!/\.map$/i.test(path13)) return void 0;
           if (!cssFile) return void 0;
-          let rel = relative(realPath(dirname(cssFile)), realPath(path12));
+          let rel = relative(realPath(dirname(cssFile)), realPath(path13));
           if (rel === ".." || rel.startsWith(".." + sep) || isAbsolute(rel)) {
             return void 0;
           }
         }
-        this.root = dirname(path12);
-        if (existsSync(path12)) {
-          this.mapFile = path12;
-          return readFileSync(path12, "utf-8").toString().trim();
+        this.root = dirname(path13);
+        if (existsSync(path13)) {
+          this.mapFile = path13;
+          return readFileSync(path13, "utf-8").toString().trim();
         }
       }
       loadMap(file, prev) {
@@ -8260,9 +8260,9 @@ var require_map_generator = __commonJS({
         if (typeof this.mapOpts.annotation === "string") {
           from = dirname(resolve(from, this.mapOpts.annotation));
         }
-        let path12 = relative(from, file);
-        this.memoizedPaths.set(file, path12);
-        return path12;
+        let path13 = relative(from, file);
+        this.memoizedPaths.set(file, path13);
+        return path13;
       }
       previous() {
         if (!this.previousMaps) {
@@ -8317,12 +8317,12 @@ var require_map_generator = __commonJS({
           return window.btoa(unescape(encodeURIComponent(str)));
         }
       }
-      toFileUrl(path12) {
-        let cached = this.memoizedFileURLs.get(path12);
+      toFileUrl(path13) {
+        let cached = this.memoizedFileURLs.get(path13);
         if (cached) return cached;
         if (pathToFileURL) {
-          let fileURL = pathToFileURL(path12).toString();
-          this.memoizedFileURLs.set(path12, fileURL);
+          let fileURL = pathToFileURL(path13).toString();
+          this.memoizedFileURLs.set(path13, fileURL);
           return fileURL;
         } else {
           throw new Error(
@@ -8330,14 +8330,14 @@ var require_map_generator = __commonJS({
           );
         }
       }
-      toUrl(path12) {
-        let cached = this.memoizedURLs.get(path12);
+      toUrl(path13) {
+        let cached = this.memoizedURLs.get(path13);
         if (cached) return cached;
         if (sep === "\\") {
-          path12 = path12.replace(/\\/g, "/");
+          path13 = path13.replace(/\\/g, "/");
         }
-        let url = encodeURI(path12).replace(/[#?]/g, encodeURIComponent);
-        this.memoizedURLs.set(path12, url);
+        let url = encodeURI(path13).replace(/[#?]/g, encodeURIComponent);
+        this.memoizedURLs.set(path13, url);
         return url;
       }
     };
@@ -16531,32 +16531,32 @@ var require_URL = __commonJS({
           else
             return basepath.substring(0, lastslash + 1) + refpath;
         }
-        function remove_dot_segments(path12) {
-          if (!path12) return path12;
+        function remove_dot_segments(path13) {
+          if (!path13) return path13;
           var output = "";
-          while (path12.length > 0) {
-            if (path12 === "." || path12 === "..") {
-              path12 = "";
+          while (path13.length > 0) {
+            if (path13 === "." || path13 === "..") {
+              path13 = "";
               break;
             }
-            var twochars = path12.substring(0, 2);
-            var threechars = path12.substring(0, 3);
-            var fourchars = path12.substring(0, 4);
+            var twochars = path13.substring(0, 2);
+            var threechars = path13.substring(0, 3);
+            var fourchars = path13.substring(0, 4);
             if (threechars === "../") {
-              path12 = path12.substring(3);
+              path13 = path13.substring(3);
             } else if (twochars === "./") {
-              path12 = path12.substring(2);
+              path13 = path13.substring(2);
             } else if (threechars === "/./") {
-              path12 = "/" + path12.substring(3);
-            } else if (twochars === "/." && path12.length === 2) {
-              path12 = "/";
-            } else if (fourchars === "/../" || threechars === "/.." && path12.length === 3) {
-              path12 = "/" + path12.substring(4);
+              path13 = "/" + path13.substring(3);
+            } else if (twochars === "/." && path13.length === 2) {
+              path13 = "/";
+            } else if (fourchars === "/../" || threechars === "/.." && path13.length === 3) {
+              path13 = "/" + path13.substring(4);
               output = output.replace(/\/?[^\/]*$/, "");
             } else {
-              var segment = path12.match(/(\/?([^\/]*))/)[0];
+              var segment = path13.match(/(\/?([^\/]*))/)[0];
               output += segment;
-              path12 = path12.substring(segment.length);
+              path13 = path13.substring(segment.length);
             }
           }
           return output;
@@ -28793,11 +28793,156 @@ var require_turndown_cjs = __commonJS({
 
 // src/cli.ts
 import { readFile as readFile5 } from "node:fs/promises";
-import path11 from "node:path";
+import path12 from "node:path";
 
 // src/app.ts
-import { createHash as createHash9, randomBytes as randomBytes2 } from "node:crypto";
+import { createHash as createHash10, randomBytes as randomBytes2 } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
+
+// src/render/sanitize.ts
+var import_sanitize_html = __toESM(require_sanitize_html(), 1);
+
+// src/render/raster.ts
+function rasterMime(bytes) {
+  let mime;
+  let width = 0;
+  let height = 0;
+  if (bytes.length >= 33 && bytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex")) && bytes.toString("ascii", 12, 16) === "IHDR") {
+    mime = "image/png";
+    width = bytes.readUInt32BE(16);
+    height = bytes.readUInt32BE(20);
+  } else if (bytes.length >= 14 && /^GIF8[79]a$/.test(bytes.toString("ascii", 0, 6))) {
+    mime = "image/gif";
+    width = bytes.readUInt16LE(6);
+    height = bytes.readUInt16LE(8);
+  } else if (bytes.length >= 12 && bytes[0] === 255 && bytes[1] === 216) {
+    for (let offset = 2; offset + 4 <= bytes.length; ) {
+      if (bytes[offset] !== 255) break;
+      const marker = bytes[offset + 1];
+      if (marker === 255) {
+        offset += 1;
+        continue;
+      }
+      if (marker === 218 || marker === 217) break;
+      const size = bytes.readUInt16BE(offset + 2);
+      if (size < 2 || offset + size + 2 > bytes.length) break;
+      if ([192, 193, 194].includes(marker) && size >= 8) {
+        mime = "image/jpeg";
+        height = bytes.readUInt16BE(offset + 5);
+        width = bytes.readUInt16BE(offset + 7);
+        break;
+      }
+      offset += size + 2;
+    }
+  } else if (bytes.length >= 30 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP" && bytes.readUInt32LE(4) + 8 === bytes.length) {
+    const type = bytes.toString("ascii", 12, 16);
+    if (type === "VP8X") {
+      mime = "image/webp";
+      width = bytes.readUIntLE(24, 3) + 1;
+      height = bytes.readUIntLE(27, 3) + 1;
+    } else if (type === "VP8 " && bytes.subarray(23, 26).equals(Buffer.from("9d012a", "hex"))) {
+      mime = "image/webp";
+      width = bytes.readUInt16LE(26) & 16383;
+      height = bytes.readUInt16LE(28) & 16383;
+    } else if (type === "VP8L" && bytes[20] === 47) {
+      mime = "image/webp";
+      const bits = bytes.readUInt32LE(21);
+      width = (bits & 16383) + 1;
+      height = (bits >>> 14 & 16383) + 1;
+    }
+  }
+  return width > 0 && height > 0 && width <= 32768 && height <= 32768 && width * height <= 1e8 ? mime : void 0;
+}
+function isSafeRasterDataUri(value) {
+  if (value.length > 70 * 1024 * 1024) return false;
+  const match = /^data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+  if (!match || match[2].length % 4 !== 0) return false;
+  const bytes = Buffer.from(match[2], "base64");
+  return bytes.toString("base64") === match[2] && rasterMime(bytes) === match[1];
+}
+
+// src/render/sanitize.ts
+var ALLOWED_TAGS = [
+  "article",
+  "section",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "p",
+  "br",
+  "hr",
+  "blockquote",
+  "pre",
+  "code",
+  "strong",
+  "em",
+  "del",
+  "ul",
+  "ol",
+  "li",
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+  "a",
+  "span",
+  "div",
+  "img"
+];
+function isHostedRasterUrl(value, webBaseUrl) {
+  if (!webBaseUrl) return false;
+  try {
+    const url = new URL(value);
+    return url.origin === new URL(webBaseUrl).origin && !url.username && !url.password && !url.search && !url.hash && /^\/files\/[a-z0-9]+\/[a-z0-9]+\.(?:png|jpg|jpeg|gif|webp)$/.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+function sanitizeStaticHtml(html, webBaseUrl) {
+  return (0, import_sanitize_html.default)(html, {
+    allowedTags: ALLOWED_TAGS,
+    allowedAttributes: {
+      a: ["href", "title"],
+      img: ["src", "alt", "title"],
+      code: ["class"],
+      th: ["align"],
+      td: ["align"]
+    },
+    allowedSchemes: ["http", "https", "mailto"],
+    allowedSchemesByTag: { img: ["data", "https", "http"] },
+    allowProtocolRelative: false,
+    disallowedTagsMode: "discard",
+    enforceHtmlBoundary: true,
+    parser: {
+      lowerCaseAttributeNames: true,
+      lowerCaseTags: true
+    },
+    exclusiveFilter: (frame) => frame.tag === "img" && !isSafeRasterDataUri(frame.attribs.src ?? "") && !isHostedRasterUrl(frame.attribs.src ?? "", webBaseUrl),
+    transformTags: {
+      a: (_tagName, attribs) => ({
+        tagName: "a",
+        attribs: {
+          ...attribs.href ? { href: attribs.href } : {},
+          ...attribs.title ? { title: attribs.title } : {}
+        }
+      })
+    }
+  });
+}
+function escapeHtml(value) {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;"
+  })[character] ?? character);
+}
 
 // src/errors.ts
 var ShareNoteError = class extends Error {
@@ -28951,6 +29096,43 @@ var ShareNoteHttpClient = class {
       throw new ShareNoteError("protocol_error", "Share Note API returned invalid JSON", void 0, { cause: error });
     }
   }
+  async uploadImage(bytes, filetype, hash) {
+    if (!this.credential) throw new ShareNoteError("credential_missing", "Credential is required for upload");
+    const timeout = withTimeout(1e4);
+    try {
+      const response = await this.fetchImplementation(endpoint(this.profile.apiBaseUrl, "/v1/file/upload"), {
+        method: "POST",
+        redirect: "manual",
+        signal: timeout.signal,
+        headers: {
+          ...createAuthHeaders(this.credential),
+          "content-type": "application/octet-stream",
+          "x-sharenote-filetype": filetype,
+          "x-sharenote-hash": hash,
+          "x-sharenote-bytelength": String(bytes.length)
+        },
+        body: new Uint8Array(bytes)
+      });
+      if (!response.ok || response.status >= 300) throw new ShareNoteError("network_error", "Image upload did not return a successful response");
+      return JSON.parse(await limitedText(response, Math.min(this.profile.maxResponseBytes, 1024 * 1024)));
+    } finally {
+      timeout.clear();
+    }
+  }
+  async getImage(value) {
+    if (!isHostedRasterUrl(value, this.profile.webBaseUrl)) throw new ShareNoteError("network_error", "Image URL is outside the approved asset location");
+    const timeout = withTimeout(1e4);
+    try {
+      const response = await this.fetchImplementation(value, { method: "GET", redirect: "manual", signal: timeout.signal, headers: { accept: "image/*" } });
+      if (!response.ok || response.status >= 300) throw new ShareNoteError("network_error", "Image read-back failed");
+      if (Number(response.headers.get("content-length") ?? 0) > this.profile.maxSourceBytes) throw new ShareNoteError("network_error", "Image response exceeds size limit");
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (bytes.length > this.profile.maxSourceBytes) throw new ShareNoteError("network_error", "Image response exceeds size limit");
+      return bytes;
+    } finally {
+      timeout.clear();
+    }
+  }
   async getPage(value, maximumRedirects = 2) {
     let target = assertWebUrl(this.profile, value);
     target.hash = "";
@@ -29084,7 +29266,7 @@ async function buildProfileConfig(input, credentialRef) {
     protocolProfile: PROTOCOL_PROFILE.id,
     defaultEncryption: true,
     allowedSourceRoots: await normalizeRoots(input.allowedSourceRoots),
-    embeddedAssetsPolicy: "block",
+    embeddedAssetsPolicy: "inline-local-images",
     allowUnencryptedPublish: false,
     allowInsecureLoopback,
     maxSourceBytes,
@@ -29094,7 +29276,7 @@ async function buildProfileConfig(input, credentialRef) {
 function assertProfile(value, expectedName) {
   if (!value || typeof value !== "object") throw new ShareNoteError("configuration_missing", "Profile is invalid");
   const profile = value;
-  if (profile.schemaVersion !== 3 || profile.name !== expectedName || typeof profile.apiBaseUrl !== "string" || typeof profile.webBaseUrl !== "string" || profile.protocolProfile !== PROTOCOL_PROFILE.id || profile.defaultEncryption !== true || profile.embeddedAssetsPolicy !== "block" || profile.allowUnencryptedPublish !== false || !Array.isArray(profile.allowedSourceRoots) || !profile.credentialRef || profile.credentialRef.type !== "plaintext-file" || typeof profile.credentialRef.id !== "string" || profile.credentialRef.id !== `credentials:${expectedName}`) {
+  if (profile.schemaVersion !== 3 || profile.name !== expectedName || typeof profile.apiBaseUrl !== "string" || typeof profile.webBaseUrl !== "string" || profile.protocolProfile !== PROTOCOL_PROFILE.id || profile.defaultEncryption !== true || !["block", "inline-local-images"].includes(profile.embeddedAssetsPolicy ?? "") || profile.allowUnencryptedPublish !== false || !Array.isArray(profile.allowedSourceRoots) || !profile.credentialRef || profile.credentialRef.type !== "plaintext-file" || typeof profile.credentialRef.id !== "string" || profile.credentialRef.id !== `credentials:${expectedName}`) {
     throw new ShareNoteError("configuration_missing", "Profile schema or security policy is invalid");
   }
   return profile;
@@ -29129,57 +29311,11 @@ var ConfigStore = class {
 };
 
 // src/preview.ts
-import path4 from "node:path";
-import { createHash as createHash4, randomUUID as randomUUID2 } from "node:crypto";
-import { chmod as chmod2, writeFile } from "node:fs/promises";
+import path5 from "node:path";
 
-// src/source.ts
-import { lstat, readFile as readFile2, realpath as realpath2, stat as stat2 } from "node:fs/promises";
-import path3 from "node:path";
-import { createHash as createHash2 } from "node:crypto";
-function inside(root, target) {
-  const relative = path3.relative(root, target);
-  return relative === "" || !relative.startsWith(".." + path3.sep) && relative !== ".." && !path3.isAbsolute(relative);
-}
-async function readSafeSource(sourcePath, projectRoot, allowedSourceRoots, maximumBytes) {
-  if (typeof sourcePath !== "string" || !sourcePath || path3.isAbsolute(sourcePath)) {
-    throw new ShareNoteError("invalid_request", "sourcePath must be relative to projectRoot");
-  }
-  const resolvedProjectRoot = await realpath2(projectRoot).catch(() => void 0);
-  if (!resolvedProjectRoot || !(await stat2(resolvedProjectRoot)).isDirectory()) {
-    throw new ShareNoteError("source_blocked", "Configured project root does not exist or is not a directory");
-  }
-  const requestedPath = path3.resolve(resolvedProjectRoot, sourcePath);
-  const requestedInfo = await lstat(requestedPath).catch(() => void 0);
-  if (!requestedInfo) throw new ShareNoteError("source_blocked", "Source file does not exist");
-  const resolved = await realpath2(requestedPath);
-  if (!inside(resolvedProjectRoot, resolved) || resolved === resolvedProjectRoot) {
-    throw new ShareNoteError("source_blocked", "Source resolves outside the configured project root");
-  }
-  const roots = await Promise.all(allowedSourceRoots.map(async (root) => realpath2(root)));
-  if (!roots.some((root) => inside(root, resolved))) {
-    throw new ShareNoteError("source_blocked", "Source resolves outside the configured allowed roots");
-  }
-  const info = await stat2(resolved);
-  if (!info.isFile()) throw new ShareNoteError("source_blocked", "Source is not a regular file");
-  if (info.size > maximumBytes) {
-    throw new ShareNoteError("source_blocked", "Source exceeds the configured size limit", {
-      bytes: info.size,
-      maximumBytes
-    });
-  }
-  const buffer = await readFile2(resolved);
-  const content = new TextDecoder("utf-8", { fatal: true }).decode(buffer);
-  return {
-    requestedPath,
-    realPath: resolved,
-    projectRelativePath: path3.relative(resolvedProjectRoot, resolved).split(path3.sep).join("/"),
-    content,
-    sourceHash: createHash2("sha256").update(buffer).digest("hex"),
-    bytes: buffer.byteLength,
-    symbolicLink: requestedInfo.isSymbolicLink()
-  };
-}
+// src/images.ts
+import path4 from "node:path";
+import { realpath as realpath3 } from "node:fs/promises";
 
 // node_modules/marked/lib/marked.esm.js
 function A() {
@@ -30459,79 +30595,125 @@ var on = f.parseInline;
 var ln = b.parse;
 var un = x.lex;
 
+// src/source.ts
+import { lstat, readFile as readFile2, realpath as realpath2, stat as stat2 } from "node:fs/promises";
+import path3 from "node:path";
+import { createHash as createHash2 } from "node:crypto";
+function inside(root, target) {
+  const relative = path3.relative(root, target);
+  return relative === "" || !relative.startsWith(".." + path3.sep) && relative !== ".." && !path3.isAbsolute(relative);
+}
+async function readSafeFile(sourcePath, projectRoot, allowedSourceRoots, maximumBytes) {
+  if (typeof sourcePath !== "string" || !sourcePath || path3.isAbsolute(sourcePath)) {
+    throw new ShareNoteError("invalid_request", "sourcePath must be relative to projectRoot");
+  }
+  const resolvedProjectRoot = await realpath2(projectRoot).catch(() => void 0);
+  if (!resolvedProjectRoot || !(await stat2(resolvedProjectRoot)).isDirectory()) {
+    throw new ShareNoteError("source_blocked", "Configured project root does not exist or is not a directory");
+  }
+  const requestedPath = path3.resolve(resolvedProjectRoot, sourcePath);
+  const requestedInfo = await lstat(requestedPath).catch(() => void 0);
+  if (!requestedInfo) throw new ShareNoteError("source_blocked", "Source file does not exist");
+  const resolved = await realpath2(requestedPath);
+  if (!inside(resolvedProjectRoot, resolved) || resolved === resolvedProjectRoot) {
+    throw new ShareNoteError("source_blocked", "Source resolves outside the configured project root");
+  }
+  const roots = await Promise.all(allowedSourceRoots.map(async (root) => realpath2(root)));
+  if (!roots.some((root) => inside(root, resolved))) {
+    throw new ShareNoteError("source_blocked", "Source resolves outside the configured allowed roots");
+  }
+  const info = await stat2(resolved);
+  if (!info.isFile()) throw new ShareNoteError("source_blocked", "Source is not a regular file");
+  if (info.size > maximumBytes) {
+    throw new ShareNoteError("source_blocked", "Source exceeds the configured size limit", {
+      bytes: info.size,
+      maximumBytes
+    });
+  }
+  const buffer = await readFile2(resolved);
+  if (buffer.byteLength > maximumBytes) throw new ShareNoteError("source_blocked", "Source exceeds the configured size limit");
+  return {
+    requestedPath,
+    realPath: resolved,
+    projectRelativePath: path3.relative(resolvedProjectRoot, resolved).split(path3.sep).join("/"),
+    buffer,
+    sourceHash: createHash2("sha256").update(buffer).digest("hex"),
+    bytes: buffer.byteLength,
+    symbolicLink: requestedInfo.isSymbolicLink()
+  };
+}
+async function readSafeSource(sourcePath, projectRoot, allowedSourceRoots, maximumBytes) {
+  const { buffer, ...source } = await readSafeFile(sourcePath, projectRoot, allowedSourceRoots, maximumBytes);
+  return { ...source, content: new TextDecoder("utf-8", { fatal: true }).decode(buffer) };
+}
+
+// src/images.ts
+async function resolveImages(source, format, projectRoot, profile) {
+  const images = /* @__PURE__ */ new Map();
+  const dependencies = [];
+  const warnings = [];
+  if (format !== "markdown") return { images, dependencies, warnings };
+  const references = /* @__PURE__ */ new Map();
+  f.walkTokens(f.lexer(source.content), (token) => {
+    if (token.type === "image") references.set(token.href, (references.get(token.href) ?? 0) + 1);
+  });
+  const resolvedRoot = await realpath3(projectRoot);
+  let remaining = profile.maxSourceBytes - source.bytes;
+  const files = /* @__PURE__ */ new Map();
+  for (const [reference, count] of references) {
+    try {
+      const decoded = decodeURIComponent(reference);
+      if (!decoded || /^[a-z][a-z0-9+.-]*:/i.test(decoded) || path4.isAbsolute(decoded) || /[\\\x00?#]/.test(decoded)) {
+        throw new Error("Only relative local image paths are supported");
+      }
+      const relativePath = path4.relative(resolvedRoot, path4.resolve(path4.dirname(source.realPath), decoded));
+      const existing = files.get(relativePath);
+      if (existing) {
+        if (existing.dependency.bytes * count > remaining) throw new Error("Repeated image exceeds size limit");
+        remaining -= existing.dependency.bytes * count;
+        existing.dependency.occurrences += count;
+        images.set(reference, existing.uri);
+        continue;
+      }
+      const file = await readSafeFile(relativePath, projectRoot, profile.allowedSourceRoots, remaining);
+      const mime = rasterMime(file.buffer);
+      const extensionMime = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
+      if (!mime || extensionMime[path4.extname(decoded).toLowerCase()] !== mime) {
+        throw new Error("Image extension, raster header or dimensions are unsupported");
+      }
+      if (file.bytes * count > remaining) throw new Error("Repeated image exceeds size limit");
+      remaining -= file.bytes * count;
+      const dependency = { path: relativePath, realPath: file.realPath, hash: file.sourceHash, bytes: file.bytes, occurrences: count };
+      const uri = `data:${mime};base64,${file.buffer.toString("base64")}`;
+      files.set(relativePath, { uri, dependency });
+      dependencies.push(dependency);
+      images.set(reference, uri);
+    } catch {
+      warnings.push(`Image could not be embedded: ${reference}. Use a valid local PNG, JPEG, GIF or WebP within the allowed roots and total source size limit.`);
+    }
+  }
+  return { images, dependencies, warnings };
+}
+async function verifyImageDependencies(dependencies, sourceBytes, projectRoot, profile) {
+  let remaining = profile.maxSourceBytes - sourceBytes;
+  for (const dependency of dependencies) {
+    const file = await readSafeFile(dependency.path, projectRoot, profile.allowedSourceRoots, remaining);
+    if (file.realPath !== dependency.realPath || file.sourceHash !== dependency.hash || file.bytes !== dependency.bytes) {
+      throw new ShareNoteError("content_blocked", "Image changed after preview; create a new preview before writing");
+    }
+    if (file.bytes * dependency.occurrences > remaining) {
+      throw new ShareNoteError("content_blocked", "Embedded images exceed the configured size limit");
+    }
+    remaining -= file.bytes * dependency.occurrences;
+  }
+}
+
+// src/preview.ts
+import { createHash as createHash4, randomUUID as randomUUID2 } from "node:crypto";
+import { chmod as chmod2, writeFile } from "node:fs/promises";
+
 // src/render/renderer.ts
 import { createHash as createHash3 } from "node:crypto";
-
-// src/render/sanitize.ts
-var import_sanitize_html = __toESM(require_sanitize_html(), 1);
-var ALLOWED_TAGS = [
-  "article",
-  "section",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "p",
-  "br",
-  "hr",
-  "blockquote",
-  "pre",
-  "code",
-  "strong",
-  "em",
-  "del",
-  "ul",
-  "ol",
-  "li",
-  "table",
-  "thead",
-  "tbody",
-  "tr",
-  "th",
-  "td",
-  "a",
-  "span",
-  "div"
-];
-function sanitizeStaticHtml(html) {
-  return (0, import_sanitize_html.default)(html, {
-    allowedTags: ALLOWED_TAGS,
-    allowedAttributes: {
-      a: ["href", "title"],
-      code: ["class"],
-      th: ["align"],
-      td: ["align"]
-    },
-    allowedSchemes: ["http", "https", "mailto"],
-    allowProtocolRelative: false,
-    disallowedTagsMode: "discard",
-    enforceHtmlBoundary: true,
-    parser: {
-      lowerCaseAttributeNames: true,
-      lowerCaseTags: true
-    },
-    transformTags: {
-      a: (_tagName, attribs) => ({
-        tagName: "a",
-        attribs: {
-          ...attribs.href ? { href: attribs.href } : {},
-          ...attribs.title ? { title: attribs.title } : {}
-        }
-      })
-    }
-  });
-}
-function escapeHtml(value) {
-  return value.replace(/[&<>'"]/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&#39;",
-    '"': "&quot;"
-  })[character] ?? character);
-}
 
 // src/render/themes/github.ts
 var githubCss = `
@@ -31055,11 +31237,14 @@ function themeCss(theme) {
   return `${COMMON_CSS.trim()}
 ${THEME_CSS[theme].trim()}`;
 }
+function imageCss(html) {
+  return /<img\s/i.test(html) ? "\n.share-note-article img { max-width: 100%; height: auto; }" : "";
+}
 function themedArticle(bodyHtml, theme) {
-  return `<article class="share-note-article" data-share-note-theme="${theme}"><style>${themeCss(theme)}</style><div class="share-note-content">${bodyHtml}</div></article>`;
+  return `<article class="share-note-article" data-share-note-theme="${theme}"><style>${themeCss(theme)}${imageCss(bodyHtml)}</style><div class="share-note-content">${bodyHtml}</div></article>`;
 }
 function matchesThemedArticle(fragment, theme) {
-  const prefix = `<article class="share-note-article" data-share-note-theme="${theme}"><style>${themeCss(theme)}</style><div class="share-note-content">`;
+  const prefix = `<article class="share-note-article" data-share-note-theme="${theme}"><style>${themeCss(theme)}${imageCss(fragment)}</style><div class="share-note-content">`;
   return fragment.startsWith(prefix) && fragment.endsWith("</div></article>");
 }
 function hasThemedArticleWrapper(fragment) {
@@ -31109,9 +31294,13 @@ function previewDocument(title, bodyHtml) {
 <body>${bodyHtml}</body>
 </html>`;
 }
-function markdownToHtml(markdown, resources) {
+function markdownToHtml(markdown, resources, images) {
   const renderer = new P();
   renderer.html = ({ text }) => escapeHtml(text);
+  renderer.image = ({ href, text, title }) => {
+    const src = images.get(href);
+    return src ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(text)}"${title ? ` title="${escapeHtml(title)}"` : ""}>` : escapeHtml(text);
+  };
   const output = f.parse(markdown, {
     async: false,
     gfm: true,
@@ -31123,11 +31312,11 @@ function markdownToHtml(markdown, resources) {
   });
   return typeof output === "string" ? output : "";
 }
-function renderDocument(source, format, fallbackTitle, theme = DEFAULT_THEME) {
+function renderDocument(source, format, fallbackTitle, theme = DEFAULT_THEME, images = /* @__PURE__ */ new Map()) {
   const resources = [];
   let rendered;
   if (format === "markdown") {
-    rendered = markdownToHtml(source, resources);
+    rendered = markdownToHtml(source, resources, images);
   } else {
     resources.push(...resourceDescriptions(source));
     rendered = source;
@@ -31135,8 +31324,9 @@ function renderDocument(source, format, fallbackTitle, theme = DEFAULT_THEME) {
   const safeHtml = sanitizeStaticHtml(rendered);
   const title = titleFromHtml(safeHtml, fallbackTitle);
   const sensitive = sensitiveFindings(source);
+  const blockedResources = resources.filter((resource) => !images.has(resource));
   const warnings = [
-    ...resources.length > 0 ? ["Embedded images or active resources are not uploaded or fetched; publication is blocked."] : [],
+    ...blockedResources.length > 0 ? ["Unsupported images or active resources are not uploaded or fetched; publication is blocked."] : [],
     ...sensitive.length > 0 ? [`Potential sensitive material was detected (${sensitive.join(", ")}); publication is blocked pending source cleanup.`] : []
   ];
   const plainText = sanitizeHtmlToText(safeHtml);
@@ -31149,7 +31339,7 @@ function renderDocument(source, format, fallbackTitle, theme = DEFAULT_THEME) {
     wordCount: countWords(plainText),
     resources: [...new Set(resources)],
     warnings,
-    publishable: resources.length === 0 && sensitive.length === 0,
+    publishable: blockedResources.length === 0 && sensitive.length === 0,
     theme
   };
 }
@@ -31179,17 +31369,24 @@ async function createPreview(dataDirectory, profile, request, projectBindingHash
   }
   const explicitTheme = request.theme === void 0 ? void 0 : parseTheme(request.theme);
   const theme = record ? explicitTheme ?? record.theme ?? null : explicitTheme ?? manifest.defaultTheme ?? DEFAULT_THEME;
+  const encryption = request.encryption ?? (record?.encrypted === false ? "public" : "encrypted");
+  const imageMode = request.imageMode ?? (encryption === "public" ? "upload" : "inline");
+  if (!["encrypted", "public"].includes(encryption) || !["inline", "upload"].includes(imageMode) || (encryption === "public" ? !record || !theme || imageMode !== "upload" : imageMode !== "inline")) {
+    throw new ShareNoteError("invalid_request", "Public mode requires an existing themed record and uploaded images; new shares remain encrypted");
+  }
   const themeName = theme ? themeDefinition(theme).name : "旧版（无主题）";
-  const fallbackTitle = path4.basename(source.realPath, path4.extname(source.realPath));
-  const rendered = renderDocument(source.content, inferFormat(source.realPath, request.format), fallbackTitle, theme);
+  const fallbackTitle = path5.basename(source.realPath, path5.extname(source.realPath));
+  const format = inferFormat(source.realPath, request.format);
+  const assets = await resolveImages(source, format, request.projectRoot, profile);
+  const rendered = renderDocument(source.content, format, fallbackTitle, theme, assets.images);
   const previewId = `preview-${randomUUID2()}`;
-  const previewDirectory = path4.join(dataDirectory, "previews");
+  const previewDirectory = path5.join(dataDirectory, "previews");
   await ensurePrivateDirectory(previewDirectory);
-  const previewPath = path4.join(previewDirectory, `${previewId}.html`);
+  const previewPath = path5.join(previewDirectory, `${previewId}.html`);
   await writeFile(previewPath, rendered.documentHtml, { encoding: "utf8", mode: 384, flag: "wx" });
   await chmod2(previewPath, 384);
   const metadata = {
-    schemaVersion: 3,
+    schemaVersion: 5,
     previewId,
     profile: profile.name,
     apiOrigin: new URL(profile.apiBaseUrl).origin,
@@ -31199,16 +31396,19 @@ async function createPreview(dataDirectory, profile, request, projectBindingHash
     sourcePath: source.projectRelativePath,
     sourceRealPath: source.realPath,
     sourceHash: source.sourceHash,
+    imageDependencies: assets.dependencies,
     contentHash: rendered.contentHash,
     title: rendered.title,
     bodyHtml: rendered.bodyHtml,
     theme,
     themeName,
     ...record ? { recordId: record.recordId } : {},
+    encryption,
+    imageMode,
     publishable: rendered.publishable,
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   };
-  await writeJsonAtomic(path4.join(previewDirectory, `${previewId}.json`), metadata);
+  await writeJsonAtomic(path5.join(previewDirectory, `${previewId}.json`), metadata);
   return {
     ok: true,
     action: "preview",
@@ -31226,12 +31426,15 @@ async function createPreview(dataDirectory, profile, request, projectBindingHash
     theme,
     themeName,
     ...record ? { recordId: record.recordId } : {},
-    bytes: source.bytes,
+    bytes: source.bytes + assets.dependencies.reduce((sum, dependency) => sum + dependency.bytes * dependency.occurrences, 0),
     wordCount: rendered.wordCount,
     resources: rendered.resources,
+    encryption,
+    imageMode,
     publishable: rendered.publishable,
     warnings: [
       ...rendered.warnings,
+      ...assets.warnings,
       ...source.symbolicLink ? ["Source is a symbolic link whose resolved target was checked inside the allowed roots."] : []
     ]
   };
@@ -31239,13 +31442,13 @@ async function createPreview(dataDirectory, profile, request, projectBindingHash
 async function loadPreview(dataDirectory, previewId) {
   if (!/^preview-[0-9a-f-]{36}$/.test(previewId)) throw new Error("Invalid preview ID");
   const value = JSON.parse(await (await import("node:fs/promises")).readFile(
-    path4.join(dataDirectory, "previews", `${previewId}.json`),
+    path5.join(dataDirectory, "previews", `${previewId}.json`),
     "utf8"
   ));
   const recordIdValid = value.recordId === void 0 || /^note-[0-9a-f-]{36}$/.test(value.recordId);
   const bodyHtmlValid = typeof value.bodyHtml === "string";
   const themeValid = bodyHtmlValid && (value.theme === null ? value.recordId !== void 0 && value.themeName === "旧版（无主题）" && !hasThemedArticleWrapper(value.bodyHtml) : THEME_IDS.includes(value.theme) && matchesThemedArticle(value.bodyHtml, value.theme) && value.themeName === themeDefinition(value.theme).name);
-  if (value.schemaVersion !== 3 || value.previewId !== previewId || typeof value.projectRoot !== "string" || typeof value.projectBindingHash !== "string" || typeof value.bodyHtml !== "string" || typeof value.contentHash !== "string" || !/^[0-9a-f]{64}$/.test(value.contentHash) || createHash4("sha256").update(value.bodyHtml, "utf8").digest("hex") !== value.contentHash || !themeValid || typeof value.themeName !== "string" || !recordIdValid) throw new Error("Invalid preview metadata");
+  if (value.schemaVersion !== 5 || !(value.encryption === "encrypted" && value.imageMode === "inline" || value.encryption === "public" && value.imageMode === "upload" && Boolean(value.recordId) && Boolean(value.theme)) || !Array.isArray(value.imageDependencies) || !value.imageDependencies.every((dependency) => dependency && typeof dependency.path === "string" && !path5.isAbsolute(dependency.path) && typeof dependency.realPath === "string" && path5.isAbsolute(dependency.realPath) && typeof dependency.hash === "string" && /^[0-9a-f]{64}$/.test(dependency.hash) && Number.isSafeInteger(dependency.bytes) && dependency.bytes > 0 && Number.isSafeInteger(dependency.occurrences) && dependency.occurrences > 0) || value.previewId !== previewId || typeof value.projectRoot !== "string" || typeof value.projectBindingHash !== "string" || typeof value.bodyHtml !== "string" || typeof value.contentHash !== "string" || !/^[0-9a-f]{64}$/.test(value.contentHash) || createHash4("sha256").update(value.bodyHtml, "utf8").digest("hex") !== value.contentHash || !themeValid || typeof value.themeName !== "string" || !recordIdValid) throw new Error("Invalid preview metadata");
   return value;
 }
 
@@ -38790,6 +38993,16 @@ function serializeDocumentTypeNode(node, { treeAdapter }) {
 function parse(html, options) {
   return Parser2.parse(html, options);
 }
+function parseFragment(fragmentContext, html, options) {
+  if (typeof fragmentContext === "string") {
+    options = html;
+    html = fragmentContext;
+    fragmentContext = null;
+  }
+  const parser = Parser2.getFragmentParser(fragmentContext, options);
+  parser.tokenizer.write(html, true);
+  return parser.getFragment();
+}
 
 // src/read/page.ts
 var import_turndown = __toESM(require_turndown_cjs(), 1);
@@ -38939,10 +39152,10 @@ function textContent2(node) {
 function hasClass(element, name) {
   return (attribute(element, "class") ?? "").split(/\s+/).includes(name);
 }
-function safeBodyHtml(html) {
-  return sanitizeStaticHtml(html);
+function safeBodyHtml(html, webBaseUrl) {
+  return sanitizeStaticHtml(html, webBaseUrl);
 }
-async function decodeSharePage(pageHtml, fragmentKey) {
+async function decodeSharePage(pageHtml, fragmentKey, webBaseUrl) {
   const document = parse(pageHtml);
   const encryptedElement = findElement(document, (element) => attribute(element, "id") === "encrypted-data");
   let title;
@@ -38977,14 +39190,15 @@ async function decodeSharePage(pageHtml, fragmentKey) {
     }
     title = fields.basename;
     rawHtml = fields.content;
-    html = safeBodyHtml(rawHtml);
+    html = safeBodyHtml(rawHtml, webBaseUrl);
   } else {
     const titleElement = findElement(document, (element) => element.tagName === "title");
     const contentElement = findElement(document, (element) => hasClass(element, "markdown-preview-sizer"));
     if (!contentElement) throw new ShareNoteError("protocol_error", "Share page does not contain a supported note payload");
     title = titleElement ? textContent2(titleElement).trim() : "Untitled";
-    rawHtml = serialize(contentElement);
-    html = safeBodyHtml(rawHtml);
+    const article = findElement(contentElement, (element) => element.tagName === "article" && Boolean(attribute(element, "data-share-note-theme")));
+    rawHtml = article ? canonicalPublicHtml(serializeOuterArticle(article)) : serialize(contentElement);
+    html = safeBodyHtml(rawHtml, webBaseUrl);
   }
   const turndown = new import_turndown.default({ codeBlockStyle: "fenced", headingStyle: "atx" });
   return {
@@ -38995,6 +39209,14 @@ async function decodeSharePage(pageHtml, fragmentKey) {
     encrypted: Boolean(encryptedElement),
     ...codec ? { codec } : {}
   };
+}
+function serializeOuterArticle(article) {
+  const fragment = parseFragment("");
+  fragment.childNodes.push(article);
+  return serialize(fragment);
+}
+function canonicalPublicHtml(html) {
+  return serialize(parseFragment(html));
 }
 
 // src/publish.ts
@@ -39033,7 +39255,7 @@ async function publishPreview(dataDirectory, profile, project, projectBindingHas
   if (preview.profile !== profile.name || preview.projectRoot !== project.projectRoot || preview.projectBindingHash !== projectBindingHash || preview.contentHash !== request.expectedContentHash) {
     throw new ShareNoteError("content_blocked", "Preview does not match the requested profile or content hash");
   }
-  if (preview.recordId || !preview.theme) {
+  if (preview.recordId || !preview.theme || preview.encryption !== "encrypted" || preview.imageMode !== "inline") {
     throw new ShareNoteError("content_blocked", "Publish requires a new-share preview with an explicit built-in theme");
   }
   if (!preview.publishable) {
@@ -39048,6 +39270,7 @@ async function publishPreview(dataDirectory, profile, project, projectBindingHas
   if (currentSource.sourceHash !== preview.sourceHash) {
     throw new ShareNoteError("content_blocked", "Source changed after preview; create a new preview before publishing");
   }
+  await verifyImageDependencies(preview.imageDependencies, currentSource.bytes, project.projectRoot, profile);
   const recordId = `note-${randomUUID3()}`;
   const operationId = `op-${randomUUID3()}`;
   const encrypted = await encryptModern(JSON.stringify({
@@ -39173,20 +39396,68 @@ async function publishPreview(dataDirectory, profile, project, projectBindingHas
 // src/manage.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
 
-// src/state/lock.ts
+// src/upload-images.ts
 import { createHash as createHash6 } from "node:crypto";
+async function uploadPreviewImages(preview, profile, project, client, operation) {
+  const replacements = /* @__PURE__ */ new Map();
+  operation.imageUploads = [];
+  for (const dependency of preview.imageDependencies) {
+    const file = await readSafeFile(dependency.path, project.projectRoot, profile.allowedSourceRoots, profile.maxSourceBytes);
+    if (file.realPath !== dependency.realPath || file.sourceHash !== dependency.hash) throw new ShareNoteError("content_blocked", "Image changed before upload");
+    const mime = rasterMime(file.buffer);
+    if (!mime) throw new ShareNoteError("content_blocked", "Image is no longer a supported raster");
+    const filetype = mime === "image/jpeg" ? "jpg" : mime.slice(6);
+    const hash = createHash6("sha1").update(file.buffer).digest("hex");
+    const existing = await client.postJson("/v1/file/check-files", { files: [{ hash, filetype }] });
+    let url = existing.files?.find((item) => item.hash === hash && item.filetype === filetype)?.url;
+    const image = { hash, filetype, status: "pending" };
+    operation.imageUploads.push(image);
+    await project.writeOperation(operation);
+    try {
+      if (!url) url = (await client.uploadImage(file.buffer, filetype, hash)).url;
+      if (!url || !isHostedRasterUrl(url, profile.webBaseUrl) || !url.endsWith(`.${filetype}`)) throw new ShareNoteError("protocol_error", "Upload returned an unapproved image URL");
+      image.url = url;
+      await project.writeOperation(operation);
+      const fetched = await client.getImage(url);
+      if (createHash6("sha256").update(fetched).digest("hex") !== dependency.hash) throw new ShareNoteError("protocol_error", "Uploaded image bytes did not match");
+      image.status = "verified";
+      await project.writeOperation(operation);
+      replacements.set(`data:${mime};base64,${file.buffer.toString("base64")}`, url);
+    } catch (error) {
+      image.status = "unknown";
+      operation.status = "unknown";
+      operation.diagnostic = "An image upload or verification was uncertain; no note update was sent. Reconcile the asset ledger before retrying.";
+      await project.writeOperation(operation);
+      throw error;
+    }
+  }
+  const fragment = parseFragment(preview.bodyHtml);
+  function replaceImages(node) {
+    if ("tagName" in node && node.tagName === "img") {
+      const src = node.attrs.find((attribute2) => attribute2.name === "src");
+      const replacement = src && replacements.get(src.value);
+      if (src && replacement) src.value = replacement;
+    }
+    if ("childNodes" in node) node.childNodes.forEach(replaceImages);
+  }
+  replaceImages(fragment);
+  return serialize(fragment);
+}
+
+// src/state/lock.ts
+import { createHash as createHash7 } from "node:crypto";
 import { open as open2, readFile as readFile3, rm as rm2, stat as stat3 } from "node:fs/promises";
-import path5 from "node:path";
+import path6 from "node:path";
 function lockFilename(name) {
-  return createHash6("sha256").update(name, "utf8").digest("hex") + ".lock";
+  return createHash7("sha256").update(name, "utf8").digest("hex") + ".lock";
 }
 async function delay(milliseconds) {
   await new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 async function withLocalLock(dataDirectory, name, operation, options = {}) {
-  const locksDirectory = path5.join(dataDirectory, "locks");
+  const locksDirectory = path6.join(dataDirectory, "locks");
   await ensurePrivateDirectory(locksDirectory);
-  const lockPath = path5.join(locksDirectory, lockFilename(name));
+  const lockPath = path6.join(locksDirectory, lockFilename(name));
   const attempts = options.attempts ?? 100;
   const retryMilliseconds = options.retryMilliseconds ?? 25;
   const staleMilliseconds = options.staleMilliseconds ?? 3e4;
@@ -39227,7 +39498,7 @@ function assertRecordBinding(record, profile) {
 }
 function validateUpdateAuthorization(request, profile, projectBindingHash) {
   const authorization = request.authorization;
-  if (authorization?.granted !== true || authorization.action !== "update" || authorization.profile !== profile.name || authorization.projectBindingHash !== projectBindingHash || authorization.recordId !== request.recordId || authorization.contentHash !== request.expectedContentHash || authorization.encryption !== "encrypted") {
+  if (authorization?.granted !== true || authorization.action !== "update" || authorization.profile !== profile.name || authorization.projectBindingHash !== projectBindingHash || authorization.recordId !== request.recordId || authorization.contentHash !== request.expectedContentHash || !["encrypted", "public"].includes(authorization.encryption)) {
     throw new ShareNoteError("content_blocked", "Update authorization is missing or does not match the record and preview");
   }
 }
@@ -39240,8 +39511,8 @@ function validateDeleteAuthorization(request) {
 async function readAndCompare(client, record, key) {
   const page = await client.getPage(record.shareUrl);
   if (page.status === 404 || page.status === 410 || !page.html) return "absent";
-  const decoded = await decodeSharePage(page.html, key);
-  return decoded.title === record.title && sha256Hex2(decoded.rawHtml) === record.contentHash ? "matched" : "changed";
+  const decoded = await decodeSharePage(page.html, key, record.webOrigin);
+  return decoded.encrypted === record.encrypted && decoded.title === record.title && sha256Hex2(decoded.rawHtml) === record.contentHash ? "matched" : "changed";
 }
 async function updateRecord(dataDirectory, profile, project, projectBindingHash, secrets, request, fetchImplementation = fetch) {
   validateUpdateAuthorization(request, profile, projectBindingHash);
@@ -39249,7 +39520,7 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
     const record = await project.getRecord(request.recordId);
     assertRecordBinding(record, profile);
     const preview = await loadPreview(dataDirectory, request.previewId);
-    if (preview.profile !== profile.name || preview.projectRoot !== project.projectRoot || preview.projectBindingHash !== projectBindingHash || preview.contentHash !== request.expectedContentHash || preview.recordId !== record.recordId || preview.sourcePath !== record.sourcePath || !preview.publishable) {
+    if (preview.profile !== profile.name || preview.projectRoot !== project.projectRoot || preview.projectBindingHash !== projectBindingHash || preview.contentHash !== request.expectedContentHash || preview.recordId !== record.recordId || preview.sourcePath !== record.sourcePath || !preview.publishable || request.authorization.encryption !== preview.encryption || (request.authorization.imageMode ?? "inline") !== preview.imageMode) {
       throw new ShareNoteError("content_blocked", "Update preview is blocked or does not match the request");
     }
     const source = await readSafeSource(
@@ -39261,8 +39532,9 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
     if (source.sourceHash !== preview.sourceHash) {
       throw new ShareNoteError("content_blocked", "Source changed after preview; create a new preview before updating");
     }
+    await verifyImageDependencies(preview.imageDependencies, source.bytes, project.projectRoot, profile);
     const credential = await secrets.readCredential(profile.credentialRef);
-    const key = await project.readNoteKey(record.noteKeyRef);
+    const key = record.encrypted || preview.encryption === "encrypted" ? await project.readNoteKey(record.noteKeyRef) : "";
     const client = new ShareNoteHttpClient(profile, credential, fetchImplementation);
     const baseline = await readAndCompare(client, record, key);
     if (baseline === "absent") {
@@ -39271,24 +39543,13 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
     if (baseline === "changed") {
       throw new ShareNoteError("conflict", "Remote note changed since the last verified local record");
     }
-    const encrypted = await encryptModern(JSON.stringify({
-      content: preview.bodyHtml,
-      basename: preview.title
-    }), key);
-    const template = {
-      filename: record.remoteFilename,
-      width: "",
-      elements: [],
-      encrypted: true,
-      content: JSON.stringify(encrypted.payload),
-      mathJax: false
-    };
-    const body = {
-      filename: record.remoteFilename,
-      filetype: "html",
-      hash: sha1Hex(template.content),
-      template
-    };
+    if (preview.encryption === "public" && /\$[&`']|TEMPLATE_[A-Z_]+/.test(preview.bodyHtml)) {
+      throw new ShareNoteError("content_blocked", "Public content contains unsupported server-template replacement sequences");
+    }
+    const previous = await project.listOperations();
+    if (previous.some((item) => item.recordId === record.recordId && (item.status === "unknown" || item.status === "pending") && item.imageUploads?.some((image) => image.status !== "verified"))) {
+      throw new ShareNoteError("content_blocked", "A previous image upload is unresolved; reconcile its ledger before another upload");
+    }
     const operationId = `op-${randomUUID4()}`;
     const now = (/* @__PURE__ */ new Date()).toISOString();
     const operation = {
@@ -39305,6 +39566,48 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
       updatedAt: now
     };
     await project.writeOperation(operation);
+    let finalHtml = preview.bodyHtml;
+    if (preview.imageMode === "upload") {
+      try {
+        finalHtml = canonicalPublicHtml(await uploadPreviewImages(preview, profile, project, client, operation));
+        const current = await readSafeSource(preview.sourcePath, project.projectRoot, profile.allowedSourceRoots, profile.maxSourceBytes);
+        if (current.sourceHash !== preview.sourceHash) throw new ShareNoteError("content_blocked", "Source changed during image upload");
+        await verifyImageDependencies(preview.imageDependencies, current.bytes, project.projectRoot, profile);
+      } catch {
+        if (operation.status !== "unknown") {
+          operation.status = "failed";
+          operation.diagnostic = "Image preparation failed; the note update was not submitted.";
+          await project.writeOperation(operation);
+        }
+        return {
+          ok: false,
+          action: "update",
+          status: operation.status,
+          recordId: record.recordId,
+          operationId,
+          theme: preview.theme,
+          verification: { fetched: false, decrypted: false, contentMatched: false },
+          warnings: ["Image upload or verification failed. The existing note was not updated; uploaded images may remain public. Inspect the operation image ledger before retrying."]
+        };
+      }
+    }
+    const finalHash = sha256Hex2(finalHtml);
+    const encrypted = preview.encryption === "encrypted" ? await encryptModern(JSON.stringify({ content: finalHtml, basename: preview.title }), key) : void 0;
+    const template = {
+      filename: record.remoteFilename,
+      width: "",
+      elements: [],
+      encrypted: Boolean(encrypted),
+      content: encrypted ? JSON.stringify(encrypted.payload) : finalHtml,
+      ...encrypted ? {} : { title: preview.title, description: "" },
+      mathJax: false
+    };
+    const body = {
+      filename: record.remoteFilename,
+      filetype: "html",
+      hash: sha1Hex(template.content),
+      template
+    };
     let response;
     try {
       response = await client.postJson(PROTOCOL_PROFILE.routes.create, body);
@@ -39348,13 +39651,13 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
       const page = await client.getPage(record.shareUrl);
       if (page.status === 200 && page.html) {
         verification.fetched = true;
-        const decoded = await decodeSharePage(page.html, key);
-        verification.decrypted = true;
-        verification.contentMatched = decoded.title === preview.title && sha256Hex2(decoded.rawHtml) === preview.contentHash;
+        const decoded = await decodeSharePage(page.html, key, record.webOrigin);
+        verification.decrypted = decoded.encrypted;
+        verification.contentMatched = decoded.encrypted === (preview.encryption === "encrypted") && decoded.title === preview.title && sha256Hex2(decoded.rawHtml) === finalHash;
       }
     } catch {
     }
-    const verified = verification.fetched && verification.decrypted && verification.contentMatched;
+    const verified = verification.fetched && (preview.encryption === "public" || verification.decrypted) && verification.contentMatched;
     operation.status = verified ? "verified" : "submitted_unverified";
     operation.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
     record.status = operation.status;
@@ -39362,7 +39665,8 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
     if (verified) {
       record.sourcePath = preview.sourcePath;
       record.sourceHash = preview.sourceHash;
-      record.contentHash = preview.contentHash;
+      record.contentHash = finalHash;
+      record.encrypted = preview.encryption === "encrypted";
       record.title = preview.title;
       if (preview.theme) record.theme = preview.theme;
       else delete record.theme;
@@ -39377,7 +39681,7 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
       operationId,
       verification,
       theme: preview.theme,
-      ...request.returnShareUrl === true ? { shareUrl: `${record.shareUrl}#${key}` } : {},
+      ...request.returnShareUrl === true ? { shareUrl: preview.encryption === "encrypted" ? `${record.shareUrl}#${key}` : record.shareUrl } : {},
       warnings: verified ? [] : ["Update was submitted but did not pass read-back verification."]
     };
   });
@@ -39390,7 +39694,7 @@ async function deleteRecord(dataDirectory, profile, project, secrets, request, f
   return withLocalLock(dataDirectory, `project:${project.projectRoot}:record:${request.recordId}`, async () => {
     const record = await project.getRecord(request.recordId);
     assertRecordBinding(record, profile);
-    const key = await project.readNoteKey(record.noteKeyRef);
+    const key = record.encrypted ? await project.readNoteKey(record.noteKeyRef) : "";
     const credential = await secrets.readCredential(profile.credentialRef);
     const client = new ShareNoteHttpClient(profile, credential, fetchImplementation);
     const operationId = `op-${randomUUID4()}`;
@@ -39504,14 +39808,14 @@ async function listLocalRecords(project, request) {
 }
 
 // src/state/store.ts
-import path6 from "node:path";
+import path7 from "node:path";
 var StateStore = class {
   constructor(dataDirectory) {
     this.dataDirectory = dataDirectory;
   }
   dataDirectory;
   get recordsPath() {
-    return path6.join(this.dataDirectory, "records.json");
+    return path7.join(this.dataDirectory, "records.json");
   }
   async readRecords() {
     const value = await readJsonFile(this.recordsPath).catch((error) => {
@@ -39531,7 +39835,7 @@ var StateStore = class {
     return (await this.readRecords()).records.filter((record) => !profile || record.profile === profile);
   }
   async listOperations() {
-    const directory = path6.join(this.dataDirectory, "operations");
+    const directory = path7.join(this.dataDirectory, "operations");
     const { readdir } = await import("node:fs/promises");
     const entries = await readdir(directory).catch((error) => {
       if (error.code === "ENOENT") return [];
@@ -39540,7 +39844,7 @@ var StateStore = class {
     const operations = [];
     for (const entry of entries.sort()) {
       if (!/^op-[0-9a-f-]{36}\.json$/.test(entry)) continue;
-      const value = await readJsonFile(path6.join(directory, entry));
+      const value = await readJsonFile(path7.join(directory, entry));
       if (!value || typeof value !== "object") continue;
       const operation = value;
       if (operation.schemaVersion === 1) {
@@ -39552,19 +39856,19 @@ var StateStore = class {
 };
 
 // src/project.ts
-import { createHash as createHash7, randomUUID as randomUUID5 } from "node:crypto";
+import { createHash as createHash8, randomUUID as randomUUID5 } from "node:crypto";
 import {
   chmod as chmod3,
   lstat as lstat2,
   mkdir as mkdir2,
   open as open3,
   readFile as readFile4,
-  realpath as realpath3,
+  realpath as realpath4,
   rename as rename2,
   rm as rm3,
   stat as stat4
 } from "node:fs/promises";
-import path7 from "node:path";
+import path8 from "node:path";
 var RECORD_ID_PATTERN = /^note-[0-9a-f-]{36}$/;
 var OPERATION_ID_PATTERN = /^op-[0-9a-f-]{36}$/;
 var NOTE_KEY_REFERENCE_PATTERN = /^project-file:notes:note-[0-9a-f-]{36}$/;
@@ -39590,26 +39894,26 @@ function assertPersistedTheme(value, fieldName) {
   return value;
 }
 function inside2(root, target) {
-  const relative = path7.relative(root, target);
-  return relative === "" || !relative.startsWith(`..${path7.sep}`) && relative !== ".." && !path7.isAbsolute(relative);
+  const relative = path8.relative(root, target);
+  return relative === "" || !relative.startsWith(`..${path8.sep}`) && relative !== ".." && !path8.isAbsolute(relative);
 }
 async function canonicalPathIncludingMissing(value) {
-  let cursor = path7.resolve(value);
+  let cursor = path8.resolve(value);
   const suffix = [];
   while (true) {
-    const resolved = await realpath3(cursor).catch(() => void 0);
-    if (resolved) return path7.join(resolved, ...suffix.reverse());
-    const parent = path7.dirname(cursor);
-    if (parent === cursor) return path7.resolve(value);
-    suffix.push(path7.basename(cursor));
+    const resolved = await realpath4(cursor).catch(() => void 0);
+    if (resolved) return path8.join(resolved, ...suffix.reverse());
+    const parent = path8.dirname(cursor);
+    if (parent === cursor) return path8.resolve(value);
+    suffix.push(path8.basename(cursor));
     cursor = parent;
   }
 }
 function assertSafeRelativePath(value) {
-  if (typeof value !== "string" || !value || value.includes("\\") || path7.posix.isAbsolute(value)) {
+  if (typeof value !== "string" || !value || value.includes("\\") || path8.posix.isAbsolute(value)) {
     throw new ShareNoteError("configuration_missing", "Project record source path is invalid");
   }
-  const normalized = path7.posix.normalize(value);
+  const normalized = path8.posix.normalize(value);
   if (normalized !== value || normalized === "." || normalized === ".." || normalized.startsWith("../")) {
     throw new ShareNoteError("configuration_missing", "Project record source path escapes the project");
   }
@@ -39641,7 +39945,7 @@ function assertRecord(value, profile) {
     "updatedAt",
     "deletedAt"
   ], "Project record");
-  if (record.schemaVersion !== 1 || typeof record.recordId !== "string" || !RECORD_ID_PATTERN.test(record.recordId) || record.profile !== profile || typeof record.apiOrigin !== "string" || typeof record.webOrigin !== "string" || typeof record.identityRef !== "string" || typeof record.remoteFilename !== "string" || typeof record.shareUrl !== "string" || typeof record.noteKeyRef !== "string" || !NOTE_KEY_REFERENCE_PATTERN.test(record.noteKeyRef) || typeof record.sourceHash !== "string" || typeof record.contentHash !== "string" || typeof record.title !== "string" || record.encrypted !== true || typeof record.status !== "string" || !RECORD_STATUSES.has(record.status) || typeof record.createdAt !== "string" || typeof record.updatedAt !== "string") {
+  if (record.schemaVersion !== 1 || typeof record.recordId !== "string" || !RECORD_ID_PATTERN.test(record.recordId) || record.profile !== profile || typeof record.apiOrigin !== "string" || typeof record.webOrigin !== "string" || typeof record.identityRef !== "string" || typeof record.remoteFilename !== "string" || typeof record.shareUrl !== "string" || typeof record.noteKeyRef !== "string" || !NOTE_KEY_REFERENCE_PATTERN.test(record.noteKeyRef) || typeof record.sourceHash !== "string" || typeof record.contentHash !== "string" || typeof record.title !== "string" || typeof record.encrypted !== "boolean" || typeof record.status !== "string" || !RECORD_STATUSES.has(record.status) || typeof record.createdAt !== "string" || typeof record.updatedAt !== "string") {
     throw new ShareNoteError("configuration_missing", "Project record schema is invalid");
   }
   assertSafeRelativePath(record.sourcePath);
@@ -39678,6 +39982,7 @@ function assertOperation(value, profile) {
     "noteKeyRef",
     "remoteUrl",
     "diagnostic",
+    "imageUploads",
     "createdAt",
     "updatedAt"
   ], "Project operation");
@@ -39686,6 +39991,9 @@ function assertOperation(value, profile) {
   }
   if (operation.noteKeyRef !== void 0 && !NOTE_KEY_REFERENCE_PATTERN.test(operation.noteKeyRef)) {
     throw new ShareNoteError("configuration_missing", "Project operation note key reference is invalid");
+  }
+  if (operation.imageUploads !== void 0 && (!Array.isArray(operation.imageUploads) || !operation.imageUploads.every((image) => image && /^[0-9a-f]{40}$/.test(image.hash) && ["png", "jpg", "gif", "webp"].includes(image.filetype) && ["pending", "verified", "unknown"].includes(image.status) && (image.url === void 0 || typeof image.url === "string")))) {
+    throw new ShareNoteError("configuration_missing", "Project image upload ledger is invalid");
   }
   return operation;
 }
@@ -39738,15 +40046,15 @@ async function assertRegularFile(filePath, missingAllowed) {
   });
   if (!info) {
     if (missingAllowed) return false;
-    throw new ShareNoteError("configuration_missing", `Required project file is missing: ${path7.basename(filePath)}`);
+    throw new ShareNoteError("configuration_missing", `Required project file is missing: ${path8.basename(filePath)}`);
   }
   if (info.isSymbolicLink() || !info.isFile()) {
-    throw new ShareNoteError("configuration_missing", `Project file must be a regular non-symbolic file: ${path7.basename(filePath)}`);
+    throw new ShareNoteError("configuration_missing", `Project file must be a regular non-symbolic file: ${path8.basename(filePath)}`);
   }
   return true;
 }
 async function writeAtomic(filePath, contents, mode) {
-  const temporaryPath = path7.join(path7.dirname(filePath), `.${path7.basename(filePath)}.${randomUUID5()}.tmp`);
+  const temporaryPath = path8.join(path8.dirname(filePath), `.${path8.basename(filePath)}.${randomUUID5()}.tmp`);
   const handle = await open3(temporaryPath, "wx", mode);
   try {
     await handle.writeFile(contents, "utf8");
@@ -39772,14 +40080,14 @@ function projectNoteKeyReference(recordId) {
 }
 async function projectRelativePath(projectRoot, target) {
   const resolvedTarget = await canonicalPathIncludingMissing(target);
-  const relative = path7.relative(projectRoot, resolvedTarget);
-  if (!relative || relative === ".." || relative.startsWith(`..${path7.sep}`) || path7.isAbsolute(relative)) {
+  const relative = path8.relative(projectRoot, resolvedTarget);
+  if (!relative || relative === ".." || relative.startsWith(`..${path8.sep}`) || path8.isAbsolute(relative)) {
     throw new ShareNoteError("source_blocked", "Source resolves outside the configured project root");
   }
-  return assertSafeRelativePath(relative.split(path7.sep).join("/"));
+  return assertSafeRelativePath(relative.split(path8.sep).join("/"));
 }
 function createProjectBindingHash(projectRoot, profile) {
-  return createHash7("sha256").update(JSON.stringify({
+  return createHash8("sha256").update(JSON.stringify({
     schemaVersion: 1,
     projectRoot,
     profile: profile.name,
@@ -39796,23 +40104,23 @@ var ProjectStore = class _ProjectStore {
   projectRoot;
   dataDirectory;
   static async open(projectRoot, dataDirectory) {
-    if (typeof projectRoot !== "string" || !projectRoot || !path7.isAbsolute(projectRoot)) {
+    if (typeof projectRoot !== "string" || !projectRoot || !path8.isAbsolute(projectRoot)) {
       throw new ShareNoteError("invalid_request", "projectRoot must be an absolute project directory");
     }
-    const resolved = await realpath3(projectRoot).catch(() => void 0);
+    const resolved = await realpath4(projectRoot).catch(() => void 0);
     if (!resolved || !(await stat4(resolved)).isDirectory()) {
       throw new ShareNoteError("invalid_request", "projectRoot does not exist or is not a directory");
     }
     return new _ProjectStore(resolved, dataDirectory);
   }
   get openAiDirectory() {
-    return path7.join(this.projectRoot, ".openai");
+    return path8.join(this.projectRoot, ".openai");
   }
   get manifestPath() {
-    return path7.join(this.openAiDirectory, "share-note.json");
+    return path8.join(this.openAiDirectory, "share-note.json");
   }
   get keysPath() {
-    return path7.join(this.openAiDirectory, "share-note.keys.json");
+    return path8.join(this.openAiDirectory, "share-note.keys.json");
   }
   async ensureProjectDirectory() {
     const info = await lstat2(this.openAiDirectory).catch((error) => {
@@ -39826,7 +40134,7 @@ var ProjectStore = class _ProjectStore {
   }
   async ensureKeyIgnore() {
     await this.ensureProjectDirectory();
-    const ignorePath = path7.join(this.openAiDirectory, ".gitignore");
+    const ignorePath = path8.join(this.openAiDirectory, ".gitignore");
     const exists = await assertRegularFile(ignorePath, true);
     const contents = exists ? await readFile4(ignorePath, "utf8") : "";
     const lines = contents.split(/\r?\n/);
@@ -40086,9 +40394,9 @@ async function openInSystemBrowser(value, approvedOrigin, platform = process.pla
 }
 
 // src/state/pending-setup.ts
-import { createHash as createHash8 } from "node:crypto";
+import { createHash as createHash9 } from "node:crypto";
 import { rm as rm4 } from "node:fs/promises";
-import path8 from "node:path";
+import path9 from "node:path";
 var MINIMUM_EXPIRY_SECONDS = 60;
 var MAXIMUM_EXPIRY_SECONDS = 30 * 60;
 var DEFAULT_EXPIRY_SECONDS = 10 * 60;
@@ -40109,7 +40417,7 @@ function bindingValue(value) {
   });
 }
 function bindingHash(value) {
-  return createHash8("sha256").update(bindingValue(value), "utf8").digest("hex");
+  return createHash9("sha256").update(bindingValue(value), "utf8").digest("hex");
 }
 function assertPending(value, expectedProfile) {
   if (!value || typeof value !== "object") {
@@ -40147,7 +40455,7 @@ var PendingSetupStore = class {
   dataDirectory;
   now;
   pathFor(profile) {
-    return path8.join(this.dataDirectory, "pending-setups", `${validateProfileName(profile)}.json`);
+    return path9.join(this.dataDirectory, "pending-setups", `${validateProfileName(profile)}.json`);
   }
   async read(profile) {
     const safeProfile = validateProfileName(profile);
@@ -40221,7 +40529,7 @@ var PendingSetupStore = class {
 // src/app.ts
 var BROWSER_API_KEY_ENV_VAR = "SHARE_NOTE_BROWSER_API_KEY";
 function codexSessionId(pending, projectRoot) {
-  return createHash9("sha256").update(JSON.stringify([pending.bindingHash, projectRoot])).digest("hex");
+  return createHash10("sha256").update(JSON.stringify([pending.bindingHash, projectRoot])).digest("hex");
 }
 function assertCodexRequestHasNoCredential(request) {
   if (["apiKey", "token", "uid", "authorizationUrl"].some((key) => key in request)) {
@@ -40732,8 +41040,8 @@ var ShareNoteApplication = class {
     if (request.recordId) {
       const record = await context.store.getRecord(request.recordId);
       if (record.profile !== profile.name) throw new ShareNoteError("content_blocked", "Record is bound to a different profile");
-      const key = await context.store.readNoteKey(record.noteKeyRef);
-      requestedUrl = `${record.shareUrl}#${key}`;
+      const key = record.encrypted ? await context.store.readNoteKey(record.noteKeyRef) : "";
+      requestedUrl = key ? `${record.shareUrl}#${key}` : record.shareUrl;
     }
     if (!requestedUrl || request.url && request.recordId) {
       throw new ShareNoteError("invalid_request", "Read requires exactly one of url or recordId");
@@ -40745,7 +41053,7 @@ var ShareNoteApplication = class {
     if (response.status === 404 || response.status === 410 || !response.html) {
       throw new ShareNoteError("not_found", "Share Note page does not exist");
     }
-    const decoded = await decodeSharePage(response.html, fragmentKey);
+    const decoded = await decodeSharePage(response.html, fragmentKey, profile.webBaseUrl);
     const format = request.outputFormat ?? "markdown";
     return {
       ok: true,
@@ -40763,17 +41071,17 @@ var ShareNoteApplication = class {
 
 // src/platform/paths.ts
 import { homedir } from "node:os";
-import path9 from "node:path";
+import path10 from "node:path";
 function userDataDirectory(environment = process.env, platform = process.platform, homeDirectory = homedir()) {
   const override = environment.SHARE_NOTE_DATA_DIR;
-  if (override) return path9.resolve(override);
+  if (override) return path10.resolve(override);
   if (platform === "darwin") {
-    return path9.join(homeDirectory, "Library", "Application Support", "codex-share-note");
+    return path10.join(homeDirectory, "Library", "Application Support", "codex-share-note");
   }
   if (platform === "win32") {
-    return path9.join(environment.APPDATA ?? path9.join(homeDirectory, "AppData", "Roaming"), "codex-share-note");
+    return path10.join(environment.APPDATA ?? path10.join(homeDirectory, "AppData", "Roaming"), "codex-share-note");
   }
-  return path9.join(environment.XDG_DATA_HOME ?? path9.join(homeDirectory, ".local", "share"), "codex-share-note");
+  return path10.join(environment.XDG_DATA_HOME ?? path10.join(homeDirectory, ".local", "share"), "codex-share-note");
 }
 
 // src/platform/hidden-input.ts
@@ -40835,8 +41143,8 @@ async function readHiddenInput(prompt, input = process.stdin, output = process.s
 }
 
 // src/secrets/plaintext-file.ts
-import { createHash as createHash10 } from "node:crypto";
-import path10 from "node:path";
+import { createHash as createHash11 } from "node:crypto";
+import path11 from "node:path";
 function credentialReference(profile) {
   return { type: "plaintext-file", id: `credentials:${validateProfileName(profile)}` };
 }
@@ -40895,8 +41203,8 @@ var PlaintextFileSecretStore = class {
   }
   pathFor(reference) {
     const category = reference.startsWith("plaintext-file:credentials:") ? "credentials" : "note-keys";
-    const digest = createHash10("sha256").update(reference).digest("hex");
-    return path10.join(this.dataDirectory, "secrets", category, `${digest}.json`);
+    const digest = createHash11("sha256").update(reference).digest("hex");
+    return path11.join(this.dataDirectory, "secrets", category, `${digest}.json`);
   }
   async readPlaintextFile(reference) {
     return readJsonFile(this.pathFor(reference)).catch(() => {
@@ -40919,7 +41227,7 @@ async function requestFromArguments(arguments_) {
   }
   const keyFromTty = action === "setup-codex-browser-complete" && rest.length === 1 && rest[0] === "--key-tty";
   if (!action || flag !== "--request" || !requestPath || rest.length > 0 && !keyFromTty) usage();
-  const resolved = path11.resolve(requestPath);
+  const resolved = path12.resolve(requestPath);
   const contents = await readFile5(resolved, "utf8");
   if (Buffer.byteLength(contents) > 1024 * 1024) {
     throw new ShareNoteError("invalid_request", "Request file exceeds 1 MiB");

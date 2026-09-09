@@ -1,4 +1,4 @@
-import { parse, serialize, type DefaultTreeAdapterMap } from 'parse5'
+import { parse, parseFragment, serialize, type DefaultTreeAdapterMap } from 'parse5'
 import TurndownService from 'turndown'
 import { decryptSupported, detectReadCodec, type SupportedCiphertext } from '../crypto/codecs.js'
 import { ShareNoteError } from '../errors.js'
@@ -34,8 +34,8 @@ function hasClass(element: Element, name: string): boolean {
   return (attribute(element, 'class') ?? '').split(/\s+/).includes(name)
 }
 
-function safeBodyHtml(html: string): string {
-  return sanitizeStaticHtml(html)
+function safeBodyHtml(html: string, webBaseUrl?: string): string {
+  return sanitizeStaticHtml(html, webBaseUrl)
 }
 
 export interface DecodedPage {
@@ -49,7 +49,8 @@ export interface DecodedPage {
 
 export async function decodeSharePage(
   pageHtml: string,
-  fragmentKey: string
+  fragmentKey: string,
+  webBaseUrl?: string
 ): Promise<DecodedPage> {
   const document = parse(pageHtml)
   const encryptedElement = findElement(document, (element) => attribute(element, 'id') === 'encrypted-data')
@@ -85,14 +86,17 @@ export async function decodeSharePage(
     }
     title = fields.basename
     rawHtml = fields.content
-    html = safeBodyHtml(rawHtml)
+    html = safeBodyHtml(rawHtml, webBaseUrl)
   } else {
     const titleElement = findElement(document, (element) => element.tagName === 'title')
     const contentElement = findElement(document, (element) => hasClass(element, 'markdown-preview-sizer'))
     if (!contentElement) throw new ShareNoteError('protocol_error', 'Share page does not contain a supported note payload')
     title = titleElement ? textContent(titleElement).trim() : 'Untitled'
-    rawHtml = serialize(contentElement as ParentNode)
-    html = safeBodyHtml(rawHtml)
+    // The service inserts layout nodes around plaintext contents. Scope verification
+    // to our complete themed article while retaining its styles and image URLs.
+    const article = findElement(contentElement, (element) => element.tagName === 'article' && Boolean(attribute(element, 'data-share-note-theme')))
+    rawHtml = article ? canonicalPublicHtml(serializeOuterArticle(article)) : serialize(contentElement as ParentNode)
+    html = safeBodyHtml(rawHtml, webBaseUrl)
   }
   const turndown = new TurndownService({ codeBlockStyle: 'fenced', headingStyle: 'atx' })
   return {
@@ -103,4 +107,15 @@ export async function decodeSharePage(
     encrypted: Boolean(encryptedElement),
     ...(codec ? { codec } : {})
   }
+}
+
+function serializeOuterArticle(article: Element): string {
+  // parse5's fragment serializer serializes children, so retain the article node.
+  const fragment = parseFragment('')
+  fragment.childNodes.push(article)
+  return serialize(fragment)
+}
+
+export function canonicalPublicHtml(html: string): string {
+  return serialize(parseFragment(html))
 }

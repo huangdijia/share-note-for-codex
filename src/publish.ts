@@ -9,6 +9,7 @@ import { decodeSharePage } from './read/page.js'
 import type { BaseResult } from './result.js'
 import type { SecretStore } from './secrets/store.js'
 import { readSafeSource } from './source.js'
+import { verifyImageDependencies } from './images.js'
 import { type ProjectStore } from './project.js'
 import type { OperationRecord, ShareRecord } from './state/store.js'
 import type { ThemeId } from './render/themes.js'
@@ -102,7 +103,7 @@ export async function publishPreview(
   ) {
     throw new ShareNoteError('content_blocked', 'Preview does not match the requested profile or content hash')
   }
-  if (preview.recordId || !preview.theme) {
+  if (preview.recordId || !preview.theme || preview.encryption !== 'encrypted' || preview.imageMode !== 'inline') {
     throw new ShareNoteError('content_blocked', 'Publish requires a new-share preview with an explicit built-in theme')
   }
   if (!preview.publishable) {
@@ -118,6 +119,7 @@ export async function publishPreview(
     throw new ShareNoteError('content_blocked', 'Source changed after preview; create a new preview before publishing')
   }
 
+  await verifyImageDependencies(preview.imageDependencies, currentSource.bytes, project.projectRoot, profile)
   const recordId = `note-${randomUUID()}`
   const operationId = `op-${randomUUID()}`
   const encrypted = await encryptModern(JSON.stringify({

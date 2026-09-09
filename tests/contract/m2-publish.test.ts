@@ -2,6 +2,7 @@ import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { decodeSharePage } from '../../src/read/page.js'
 import { ShareNoteApplication } from '../../src/app.js'
 import { PlaintextFileSecretStore } from '../../src/secrets/plaintext-file.js'
 import { MockShareNoteServer } from '../helpers/mock-share-note-server.js'
@@ -82,6 +83,33 @@ describe('M2 encrypted publish and verification', () => {
     expect(rawPage).not.toContain('Only encrypted content may leave the client.')
     expect(server.requestLog.filter((entry) => entry.path === '/v1/file/create-note')).toHaveLength(1)
     expect(server.requestLog.at(-2)).toMatchObject({ method: 'GET', credentialed: false })
+  })
+
+  it('publishes local raster bytes only inside encryption and preserves them on read', async () => {
+    const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6GkAAAAASUVORK5CYII=', 'base64')
+    await writeFile(path.join(workspace, 'banner.png'), image)
+    await writeFile(sourcePath, '# Image note\n\n![Banner](banner.png)')
+    const localPreview = await preview()
+    expect(localPreview.publishable).toBe(true)
+    const result = await application.publish(publishRequest(localPreview))
+    expect(result.status).toBe('verified')
+    const [url, key] = result.shareUrl!.split('#')
+    const rawPage = await (await fetch(url!)).text()
+    expect(rawPage).not.toContain(image.toString('base64'))
+    const decoded = await decodeSharePage(rawPage, key!)
+    expect(decoded.html).toContain(`data:image/png;base64,${image.toString('base64')}`)
+    expect(decoded.markdown).toContain('![Banner](data:image/png;base64,')
+    expect(server.requestLog.filter((entry) => entry.path === '/v1/file/create-note')).toHaveLength(1)
+  })
+
+  it('blocks changed image bytes before any create request', async () => {
+    const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6GkAAAAASUVORK5CYII=', 'base64')
+    await writeFile(path.join(workspace, 'banner.png'), image)
+    await writeFile(sourcePath, '# Image note\n![Banner](banner.png)')
+    const localPreview = await preview()
+    await writeFile(path.join(workspace, 'banner.png'), Buffer.concat([image, Buffer.from('changed')]))
+    await expect(application.publish(publishRequest(localPreview))).rejects.toMatchObject({ code: 'content_blocked' })
+    expect(server.requestLog.filter((entry) => entry.path === '/v1/file/create-note')).toHaveLength(0)
   })
 
   it('does not expose a full fragment URL unless requested', async () => {

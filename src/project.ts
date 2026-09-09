@@ -134,7 +134,7 @@ function assertRecord(value: unknown, profile: string): ShareRecord {
     typeof record.sourceHash !== 'string' ||
     typeof record.contentHash !== 'string' ||
     typeof record.title !== 'string' ||
-    record.encrypted !== true ||
+    typeof record.encrypted !== 'boolean' ||
     typeof record.status !== 'string' ||
     !RECORD_STATUSES.has(record.status) ||
     typeof record.createdAt !== 'string' ||
@@ -185,6 +185,7 @@ function assertOperation(value: unknown, profile: string): OperationRecord {
     'noteKeyRef',
     'remoteUrl',
     'diagnostic',
+    'imageUploads',
     'createdAt',
     'updatedAt'
   ], 'Project operation')
@@ -206,6 +207,11 @@ function assertOperation(value: unknown, profile: string): OperationRecord {
   }
   if (operation.noteKeyRef !== undefined && !NOTE_KEY_REFERENCE_PATTERN.test(operation.noteKeyRef)) {
     throw new ShareNoteError('configuration_missing', 'Project operation note key reference is invalid')
+  }
+  if (operation.imageUploads !== undefined && (!Array.isArray(operation.imageUploads) || !operation.imageUploads.every((image) =>
+    image && /^[0-9a-f]{40}$/.test(image.hash) && ['png', 'jpg', 'gif', 'webp'].includes(image.filetype) &&
+    ['pending', 'verified', 'unknown'].includes(image.status) && (image.url === undefined || typeof image.url === 'string')))) {
+    throw new ShareNoteError('configuration_missing', 'Project image upload ledger is invalid')
   }
   return operation as OperationRecord
 }

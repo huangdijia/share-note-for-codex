@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { decodeSharePage } from '../../src/read/page.js'
 import { ShareNoteApplication } from '../../src/app.js'
 import { createAuthHeaders } from '../../src/protocol/auth.js'
 import { PROTOCOL_PROFILE } from '../../src/protocol/profile.js'
@@ -125,6 +126,25 @@ describe('M3 update, list, delete and local locking', () => {
     expect(after.ivs).not.toEqual(before.ivs)
     expect(after.ciphertext).not.toEqual(before.ciphertext)
     expect(await readFile(sourcePath, 'utf8')).toContain('Version two')
+  })
+
+  it('updates encrypted images in place and blocks later image changes', async () => {
+    const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6GkAAAAASUVORK5CYII=', 'base64')
+    const imagePath = path.join(workspace, 'banner.png')
+    await writeFile(imagePath, image)
+    const preview = await nextPreview('![Banner](banner.png)')
+    const result = await application.update(updateRequest(preview))
+    expect(result.status).toBe('verified')
+    expect(result.shareUrl).toBe(published.shareUrl)
+    const [url, key] = result.shareUrl!.split('#')
+    const page = await (await fetch(url!)).text()
+    expect(page).not.toContain(image.toString('base64'))
+    expect((await decodeSharePage(page, key!)).html).toContain(`data:image/png;base64,${image.toString('base64')}`)
+    const next = await nextPreview('![Banner](banner.png)')
+    await writeFile(imagePath, Buffer.concat([image, Buffer.from('changed')]))
+    const createsBefore = server.requestLog.filter((entry) => entry.path === '/v1/file/create-note').length
+    await expect(application.update(updateRequest(next))).rejects.toMatchObject({ code: 'content_blocked' })
+    expect(server.requestLog.filter((entry) => entry.path === '/v1/file/create-note')).toHaveLength(createsBefore)
   })
 
   it('does not submit an update when the original remote target is absent', async () => {

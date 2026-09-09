@@ -16,7 +16,7 @@ Version 0.1.0 targets Node.js 20+ on Windows, Linux, and macOS. API credentials 
 - Repo-local marketplace at `.agents/plugins/marketplace.json`
 - Locked build dependencies, mock/contract tests, protocol fixtures, and security/acceptance documentation
 
-There is no MCP server, daemon, background sync, dynamic `npm install`, arbitrary webpage execution, or user-attachment upload. Local secret storage is intentionally plaintext; encrypted Share Note page bodies remain the only publication mode.
+There is no MCP server, daemon, background sync, dynamic `npm install`, arbitrary webpage execution, or background attachment upload. Local secret storage is intentionally plaintext. New shares use encrypted bodies; an existing themed page can be explicitly updated to public mode with separately uploaded images.
 
 ## Install with natural language
 
@@ -188,9 +188,11 @@ No master-password environment variable is required. Legacy setup and doctor rem
 
 Preview returns the resolved profile, API/Web origins, and `projectBindingHash`. Publish and update authorization must echo that profile and binding hash together with the exact content hash. This invalidates authorization if the project target changes after preview.
 
-Publishing and updating always require a fresh preview and exact hash-bound authorization. Encrypted publication is the only write mode. The client stores the project note key and pending operation before the first create request, never blindly retries ambiguous writes, and reports one of `verified`, `submitted_unverified`, `unknown`, `failed`, `blocked`, or `already_absent`.
+Publishing and updating always require a fresh preview and exact hash-bound authorization. New shares use encrypted publication. Existing themed pages additionally support explicitly authorized public updates with separate image uploads; this does not change the profile default. The client stores the project note key and pending operation before the first create request, never blindly retries ambiguous writes, and reports one of `verified`, `submitted_unverified`, `unknown`, `failed`, `blocked`, or `already_absent`.
 
-`list` has `scope: "project"` and never claims to enumerate the remote account. Delete keeps the local source, project audit record, and project key. Images and other user attachments block publication because Share Note body encryption does not cover them.
+`list` has `scope: "project"` and never claims to enumerate the remote account. Delete keeps the local source, project audit record, and project key. Local PNG, JPEG, GIF and WebP images referenced with Markdown image syntax are embedded as data URIs inside encrypted page bodies by default. For explicitly authorized public updates, they are uploaded separately and referenced by their returned URLs. Image paths are resolved relative to the source document and must stay inside the project and configured allowed roots, including symlink targets. The source and image bytes share the configured source-size limit; repeated image references count once per occurrence. Publication and updates reject images changed after preview. Remote image URLs, SVG, raw HTML image embeds and active embeds remain blocked.
+
+To convert an existing themed share, ask Codex: “Update README_CN.md in public mode with separately uploaded images.” Preview uses `encryption: "public"` and `imageMode: "upload"`; the update authorization must match both fields as well as the preview hash and target record. Public pages and their image URLs are readable without a fragment key. Subsequent updates preserve the record's mode unless explicitly changed. Uploaded images may remain after a note is deleted; the upstream deletion endpoint does not delete image attachments.
 
 ## Article styles
 
@@ -217,7 +219,7 @@ For new publications through Codex, the agent asks you to choose from the built-
 
 For updates, include the target `recordId` in the **preview** request as well as the update request. The source must match that project's record. Without an explicit theme, the preview preserves the record's style, regardless of the current project default. A legacy record without a theme retains its original unthemed body format; explicitly selecting a built-in theme migrates it. Previews created by older clients must be regenerated.
 
-The same sanitized body, trusted scoped CSS and article container form the local preview and encrypted online payload. Only the local HTML document shell differs. These are adapted article styles: they do not install, call or integrate with the GitHub, Typora or Obsidian apps, and they do not add syntax support. Themes use local system fonts, with no downloaded fonts, images or external CSS. The `github` style is derived from a pinned `github-markdown-css` source under the MIT license recorded in `THIRD_PARTY_NOTICES.md`; the Typora- and Obsidian-named styles are independent visual adaptations. Long code and wide tables scroll within their own areas. Custom CSS, syntax highlighting and Mermaid are not supported. HTML/Markdown read output remains sanitized and does not reproduce theme CSS.
+The sanitized body, trusted scoped CSS and article container form the local preview and online payload. Public updates replace preview image data with verified uploaded asset URLs and verify the resulting article after upload. Only the local HTML document shell differs. These are adapted article styles: they do not install, call or integrate with the GitHub, Typora or Obsidian apps, and they do not add syntax support. Themes use local system fonts, with no downloaded fonts, images or external CSS. The `github` style is derived from a pinned `github-markdown-css` source under the MIT license recorded in `THIRD_PARTY_NOTICES.md`; the Typora- and Obsidian-named styles are independent visual adaptations. Long code and wide tables scroll within their own areas. Custom CSS, syntax highlighting and Mermaid are not supported. HTML/Markdown read output remains sanitized and does not reproduce theme CSS.
 
 See `examples/preview-reading.request.json`, `examples/preview-update.request.json`, and `examples/configure-theme.request.json`. Automated mock checks and local screenshots do not establish compatibility with a live service; see `docs/THEME_ACCEPTANCE.md` for the current verification boundary.
 
@@ -239,4 +241,4 @@ This design provides no encryption at rest: any process or user that can read th
 
 The frozen profile and upstream commits are recorded in `docs/PROTOCOL.md`. Security boundaries are in `docs/SECURITY.md`; A01–A22 results are in `docs/ACCEPTANCE.md`.
 
-All reported remote-flow tests use the in-process mock service and deterministic protocol fixtures. **No real service credential was provided, so public/self-hosted target-instance doctor, publish, update, delete, CDN behavior, clean-machine marketplace install, and online compatibility were not executed. No release or marketplace publication is claimed.**
+Automated tests use the in-process mock service and deterministic protocol fixtures. A live separate-image upload experiment on the public service is documented in [the experiment report](docs/experiments/independent-image-upload.md); that report distinguishes byte-level read-back from browser rendering. No general self-hosted compatibility, clean-machine installation, release or marketplace publication is claimed.

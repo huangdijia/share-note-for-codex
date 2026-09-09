@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { resolveImages, type ImageDependency } from './images.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { chmod, writeFile } from 'node:fs/promises'
 import type { ProfileConfig } from './config.js'
@@ -24,10 +25,12 @@ export interface PreviewRequest {
   format?: SourceFormat
   theme?: ThemeId
   recordId?: string
+  encryption?: 'encrypted' | 'public'
+  imageMode?: 'inline' | 'upload'
 }
 
 export interface PreviewMetadata {
-  schemaVersion: 3
+  schemaVersion: 5
   previewId: string
   profile: string
   apiOrigin: string
@@ -37,12 +40,15 @@ export interface PreviewMetadata {
   sourcePath: string
   sourceRealPath: string
   sourceHash: string
+  imageDependencies: ImageDependency[]
   contentHash: string
   title: string
   bodyHtml: string
   theme: ThemeId | null
   themeName: string
   recordId?: string
+  encryption: 'encrypted' | 'public'
+  imageMode: 'inline' | 'upload'
   publishable: boolean
   createdAt: string
 }
@@ -65,6 +71,8 @@ export interface PreviewResult extends BaseResult {
   bytes: number
   wordCount: number
   resources: string[]
+  encryption: 'encrypted' | 'public'
+  imageMode: 'inline' | 'upload'
   publishable: boolean
 }
 
@@ -101,9 +109,17 @@ export async function createPreview(
   const theme = record
     ? explicitTheme ?? record.theme ?? null
     : explicitTheme ?? manifest.defaultTheme ?? DEFAULT_THEME
+  const encryption = request.encryption ?? (record?.encrypted === false ? 'public' : 'encrypted')
+  const imageMode = request.imageMode ?? (encryption === 'public' ? 'upload' : 'inline')
+  if (!['encrypted', 'public'].includes(encryption) || !['inline', 'upload'].includes(imageMode) ||
+    (encryption === 'public' ? (!record || !theme || imageMode !== 'upload') : imageMode !== 'inline')) {
+    throw new ShareNoteError('invalid_request', 'Public mode requires an existing themed record and uploaded images; new shares remain encrypted')
+  }
   const themeName = theme ? themeDefinition(theme).name : '旧版（无主题）'
   const fallbackTitle = path.basename(source.realPath, path.extname(source.realPath))
-  const rendered = renderDocument(source.content, inferFormat(source.realPath, request.format), fallbackTitle, theme)
+  const format = inferFormat(source.realPath, request.format)
+  const assets = await resolveImages(source, format, request.projectRoot, profile)
+  const rendered = renderDocument(source.content, format, fallbackTitle, theme, assets.images)
   const previewId = `preview-${randomUUID()}`
   const previewDirectory = path.join(dataDirectory, 'previews')
   await ensurePrivateDirectory(previewDirectory)
@@ -111,7 +127,7 @@ export async function createPreview(
   await writeFile(previewPath, rendered.documentHtml, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
   await chmod(previewPath, 0o600)
   const metadata: PreviewMetadata = {
-    schemaVersion: 3,
+    schemaVersion: 5,
     previewId,
     profile: profile.name,
     apiOrigin: new URL(profile.apiBaseUrl).origin,
@@ -121,12 +137,15 @@ export async function createPreview(
     sourcePath: source.projectRelativePath,
     sourceRealPath: source.realPath,
     sourceHash: source.sourceHash,
+    imageDependencies: assets.dependencies,
     contentHash: rendered.contentHash,
     title: rendered.title,
     bodyHtml: rendered.bodyHtml,
     theme,
     themeName,
     ...(record ? { recordId: record.recordId } : {}),
+    encryption,
+    imageMode,
     publishable: rendered.publishable,
     createdAt: new Date().toISOString()
   }
@@ -148,12 +167,15 @@ export async function createPreview(
     theme,
     themeName,
     ...(record ? { recordId: record.recordId } : {}),
-    bytes: source.bytes,
+    bytes: source.bytes + assets.dependencies.reduce((sum, dependency) => sum + dependency.bytes * dependency.occurrences, 0),
     wordCount: rendered.wordCount,
     resources: rendered.resources,
+    encryption,
+    imageMode,
     publishable: rendered.publishable,
     warnings: [
       ...rendered.warnings,
+      ...assets.warnings,
       ...(source.symbolicLink ? ['Source is a symbolic link whose resolved target was checked inside the allowed roots.'] : [])
     ]
   }
@@ -175,7 +197,15 @@ export async function loadPreview(dataDirectory: string, previewId: string): Pro
       matchesThemedArticle(value.bodyHtml, value.theme) &&
       value.themeName === themeDefinition(value.theme).name)
   if (
-    value.schemaVersion !== 3 ||
+    value.schemaVersion !== 5 ||
+    !(value.encryption === 'encrypted' && value.imageMode === 'inline' || value.encryption === 'public' && value.imageMode === 'upload' && Boolean(value.recordId) && Boolean(value.theme)) ||
+    !Array.isArray(value.imageDependencies) ||
+    !value.imageDependencies.every((dependency) => dependency &&
+      typeof dependency.path === 'string' && !path.isAbsolute(dependency.path) &&
+      typeof dependency.realPath === 'string' && path.isAbsolute(dependency.realPath) &&
+      typeof dependency.hash === 'string' && /^[0-9a-f]{64}$/.test(dependency.hash) &&
+      Number.isSafeInteger(dependency.bytes) && dependency.bytes > 0 &&
+      Number.isSafeInteger(dependency.occurrences) && dependency.occurrences > 0) ||
     value.previewId !== previewId ||
     typeof value.projectRoot !== 'string' ||
     typeof value.projectBindingHash !== 'string' ||

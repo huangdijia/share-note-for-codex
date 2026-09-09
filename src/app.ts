@@ -727,8 +727,8 @@ export class ShareNoteApplication {
     if (request.recordId) {
       const record = await context.store.getRecord(request.recordId)
       if (record.profile !== profile.name) throw new ShareNoteError('content_blocked', 'Record is bound to a different profile')
-      const key = await context.store.readNoteKey(record.noteKeyRef)
-      requestedUrl = `${record.shareUrl}#${key}`
+      const key = record.encrypted ? await context.store.readNoteKey(record.noteKeyRef) : ''
+      requestedUrl = key ? `${record.shareUrl}#${key}` : record.shareUrl
     }
     if (!requestedUrl || (request.url && request.recordId)) {
       throw new ShareNoteError('invalid_request', 'Read requires exactly one of url or recordId')
@@ -740,7 +740,7 @@ export class ShareNoteApplication {
     if (response.status === 404 || response.status === 410 || !response.html) {
       throw new ShareNoteError('not_found', 'Share Note page does not exist')
     }
-    const decoded = await decodeSharePage(response.html, fragmentKey)
+    const decoded = await decodeSharePage(response.html, fragmentKey, profile.webBaseUrl)
     const format = request.outputFormat ?? 'markdown'
     return {
       ok: true,

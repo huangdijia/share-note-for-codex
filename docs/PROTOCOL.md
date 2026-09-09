@@ -28,6 +28,7 @@ The API and web origins are configured separately. Credentials are sent only to 
 |---|---|---|
 | `POST /v1/file/check-files` | non-writing authenticated doctor check with `files: []` | limited only when no ambiguity is created |
 | `POST /v1/file/create-note` | create or update by `filename` | no blind retry |
+| `POST /v1/file/upload` | authorized public-update image upload; raw bytes and filetype/hash/bytelength headers | no blind retry; persist unknown outcomes |
 | `POST /v1/file/delete` | delete an owned HTML note | no blind retry; verify with credential-free GET |
 | `GET /v1/account/get-key?id=<random UID>` | interactive browser initialization only | no credential header; no automatic retry or fallback |
 | `GET <share URL>` | read or verify page | limited retry, exact approved web origin only |
@@ -69,7 +70,7 @@ New writes use `aes-gcm-random-ivs-v1.5`:
 - the key is standard Base64 without trailing padding and is placed only in the share URL fragment or secure storage;
 - the server receives `JSON.stringify({ ciphertext: string[], ivs: string[] })` and never receives the fragment key.
 
-No write path may fall back to plaintext or to either historical deterministic-IV codec.
+No encrypted write path may fall back to plaintext or to either historical deterministic-IV codec. An explicitly authorized public update is a separate preview-bound mode, not an encryption fallback.
 
 ## Read codecs
 
@@ -88,3 +89,9 @@ Malformed or unknown payloads fail explicitly. Decryption failure is not convert
 `tests/fixtures/protocol-ciphertexts.json` contains known modern, 1.4.2 and 1.1.3 ciphertexts for identical Chinese/emoji content. Unit tests verify decryption and the authentication vector. The mock service used by contract tests implements only this recorded wire behavior and must not be described as a live Share Note instance.
 
 M0 entry condition is met locally: request structure, authentication, codec selection, version mapping and fixtures are fixed. **No live service credential was available, so target-instance compatibility and online writes were not tested.**
+
+## Public update and image-upload extension
+
+The 2026-09-09 image-upload experiment is recorded in [the live report](experiments/independent-image-upload.md), with pinned client/server sources. A public update sets `template.encrypted: false`, supplies the title and HTML content directly, and keeps the existing remote filename. Local raster images use `check-files` deduplication followed by raw `upload` where needed. Their uploaded URLs replace local image data in the public article. These assets are not encrypted, and the HTML delete endpoint does not remove them.
+
+Public preview authorization binds the source, image dependencies and intended public/upload modes. The final article hash is computed after verified asset URLs have been substituted. Public HTML is parsed and serialized consistently for read-back; the service wrapper is not treated as user article content. New shares remain encrypted; public mode currently applies to updates of existing themed records.

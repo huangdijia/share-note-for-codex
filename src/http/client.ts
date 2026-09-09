@@ -1,3 +1,4 @@
+import { isHostedRasterUrl } from '../render/sanitize.js'
 import type { ProfileConfig } from '../config.js'
 import { ShareNoteError } from '../errors.js'
 import { createAuthHeaders, type ShareNoteCredential } from '../protocol/auth.js'
@@ -97,6 +98,39 @@ export class ShareNoteHttpClient {
     } catch (error) {
       throw new ShareNoteError('protocol_error', 'Share Note API returned invalid JSON', undefined, { cause: error })
     }
+  }
+
+  async uploadImage(bytes: Buffer, filetype: string, hash: string): Promise<{ url?: string }> {
+    if (!this.credential) throw new ShareNoteError('credential_missing', 'Credential is required for upload')
+    const timeout = withTimeout(10_000)
+    try {
+      const response = await this.fetchImplementation(endpoint(this.profile.apiBaseUrl, '/v1/file/upload'), {
+        method: 'POST', redirect: 'manual', signal: timeout.signal,
+        headers: {
+          ...createAuthHeaders(this.credential),
+          'content-type': 'application/octet-stream',
+          'x-sharenote-filetype': filetype,
+          'x-sharenote-hash': hash,
+          'x-sharenote-bytelength': String(bytes.length)
+        },
+        body: new Uint8Array(bytes)
+      })
+      if (!response.ok || response.status >= 300) throw new ShareNoteError('network_error', 'Image upload did not return a successful response')
+      return JSON.parse(await limitedText(response, Math.min(this.profile.maxResponseBytes, 1024 * 1024))) as { url?: string }
+    } finally { timeout.clear() }
+  }
+
+  async getImage(value: string): Promise<Buffer> {
+    if (!isHostedRasterUrl(value, this.profile.webBaseUrl)) throw new ShareNoteError('network_error', 'Image URL is outside the approved asset location')
+    const timeout = withTimeout(10_000)
+    try {
+      const response = await this.fetchImplementation(value, { method: 'GET', redirect: 'manual', signal: timeout.signal, headers: { accept: 'image/*' } })
+      if (!response.ok || response.status >= 300) throw new ShareNoteError('network_error', 'Image read-back failed')
+      if (Number(response.headers.get('content-length') ?? 0) > this.profile.maxSourceBytes) throw new ShareNoteError('network_error', 'Image response exceeds size limit')
+      const bytes = Buffer.from(await response.arrayBuffer())
+      if (bytes.length > this.profile.maxSourceBytes) throw new ShareNoteError('network_error', 'Image response exceeds size limit')
+      return bytes
+    } finally { timeout.clear() }
   }
 
   async getPage(value: string, maximumRedirects = 2): Promise<PageResponse> {

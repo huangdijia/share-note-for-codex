@@ -19,7 +19,7 @@ export interface ShareRecord {
   contentHash: string
   title: string
   theme?: ThemeId
-  encrypted: true
+  encrypted: boolean
   status: OperationStatus
   createdAt: string
   updatedAt: string
@@ -38,6 +38,7 @@ export interface OperationRecord {
   noteKeyRef?: string
   remoteUrl?: string
   diagnostic?: string
+  imageUploads?: Array<{ hash: string; filetype: string; status: 'pending' | 'verified' | 'unknown'; url?: string }>
   createdAt: string
   updatedAt: string
 }

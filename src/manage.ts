@@ -10,10 +10,12 @@ import {
   type DeleteNoteRequest,
   type NoteTemplate
 } from './protocol/profile.js'
-import { decodeSharePage } from './read/page.js'
+import { uploadPreviewImages } from './upload-images.js'
+import { canonicalPublicHtml, decodeSharePage } from './read/page.js'
 import type { BaseResult } from './result.js'
 import type { SecretStore } from './secrets/store.js'
 import { readSafeSource } from './source.js'
+import { verifyImageDependencies } from './images.js'
 import type { ProjectStore } from './project.js'
 import { withLocalLock } from './state/lock.js'
 import type { OperationRecord, ShareRecord } from './state/store.js'
@@ -32,7 +34,8 @@ export interface UpdateRequest {
     projectBindingHash: string
     recordId: string
     contentHash: string
-    encryption: 'encrypted'
+    encryption: 'encrypted' | 'public'
+    imageMode?: 'inline' | 'upload'
   }
   returnShareUrl?: boolean
 }
@@ -82,7 +85,7 @@ function validateUpdateAuthorization(
     authorization.projectBindingHash !== projectBindingHash ||
     authorization.recordId !== request.recordId ||
     authorization.contentHash !== request.expectedContentHash ||
-    authorization.encryption !== 'encrypted'
+    !['encrypted', 'public'].includes(authorization.encryption)
   ) {
     throw new ShareNoteError('content_blocked', 'Update authorization is missing or does not match the record and preview')
   }
@@ -106,8 +109,8 @@ async function readAndCompare(
 ): Promise<'absent' | 'matched' | 'changed'> {
   const page = await client.getPage(record.shareUrl)
   if (page.status === 404 || page.status === 410 || !page.html) return 'absent'
-  const decoded = await decodeSharePage(page.html, key)
-  return decoded.title === record.title && sha256Hex(decoded.rawHtml) === record.contentHash
+  const decoded = await decodeSharePage(page.html, key, record.webOrigin)
+  return decoded.encrypted === record.encrypted && decoded.title === record.title && sha256Hex(decoded.rawHtml) === record.contentHash
     ? 'matched'
     : 'changed'
 }
@@ -140,7 +143,9 @@ export async function updateRecord(
       preview.contentHash !== request.expectedContentHash ||
       preview.recordId !== record.recordId ||
       preview.sourcePath !== record.sourcePath ||
-      !preview.publishable
+      !preview.publishable ||
+      request.authorization.encryption !== preview.encryption ||
+      (request.authorization.imageMode ?? 'inline') !== preview.imageMode
     ) {
       throw new ShareNoteError('content_blocked', 'Update preview is blocked or does not match the request')
     }
@@ -153,8 +158,9 @@ export async function updateRecord(
     if (source.sourceHash !== preview.sourceHash) {
       throw new ShareNoteError('content_blocked', 'Source changed after preview; create a new preview before updating')
     }
+    await verifyImageDependencies(preview.imageDependencies, source.bytes, project.projectRoot, profile)
     const credential = await secrets.readCredential(profile.credentialRef)
-    const key = await project.readNoteKey(record.noteKeyRef)
+    const key = record.encrypted || preview.encryption === 'encrypted' ? await project.readNoteKey(record.noteKeyRef) : ''
     const client = new ShareNoteHttpClient(profile, credential, fetchImplementation)
     const baseline = await readAndCompare(client, record, key)
     if (baseline === 'absent') {
@@ -164,23 +170,13 @@ export async function updateRecord(
       throw new ShareNoteError('conflict', 'Remote note changed since the last verified local record')
     }
 
-    const encrypted = await encryptModern(JSON.stringify({
-      content: preview.bodyHtml,
-      basename: preview.title
-    }), key)
-    const template: NoteTemplate = {
-      filename: record.remoteFilename,
-      width: '',
-      elements: [],
-      encrypted: true,
-      content: JSON.stringify(encrypted.payload),
-      mathJax: false
+    if (preview.encryption === 'public' && /\$[&`']|TEMPLATE_[A-Z_]+/.test(preview.bodyHtml)) {
+      throw new ShareNoteError('content_blocked', 'Public content contains unsupported server-template replacement sequences')
     }
-    const body: CreateNoteRequest = {
-      filename: record.remoteFilename,
-      filetype: 'html',
-      hash: sha1Hex(template.content),
-      template
+    const previous = await project.listOperations()
+    if (previous.some((item) => item.recordId === record.recordId &&
+      (item.status === 'unknown' || item.status === 'pending') && item.imageUploads?.some((image) => image.status !== 'verified'))) {
+      throw new ShareNoteError('content_blocked', 'A previous image upload is unresolved; reconcile its ledger before another upload')
     }
     const operationId = `op-${randomUUID()}`
     const now = new Date().toISOString()
@@ -198,6 +194,42 @@ export async function updateRecord(
       updatedAt: now
     }
     await project.writeOperation(operation)
+    let finalHtml = preview.bodyHtml
+    if (preview.imageMode === 'upload') {
+      try {
+        finalHtml = canonicalPublicHtml(await uploadPreviewImages(preview, profile, project, client, operation))
+        const current = await readSafeSource(preview.sourcePath, project.projectRoot, profile.allowedSourceRoots, profile.maxSourceBytes)
+        if (current.sourceHash !== preview.sourceHash) throw new ShareNoteError('content_blocked', 'Source changed during image upload')
+        await verifyImageDependencies(preview.imageDependencies, current.bytes, project.projectRoot, profile)
+      } catch {
+        if (operation.status !== 'unknown') {
+          operation.status = 'failed'
+          operation.diagnostic = 'Image preparation failed; the note update was not submitted.'
+          await project.writeOperation(operation)
+        }
+        return {
+          ok: false, action: 'update' as const, status: operation.status,
+          recordId: record.recordId, operationId, theme: preview.theme,
+          verification: { fetched: false, decrypted: false, contentMatched: false },
+          warnings: ['Image upload or verification failed. The existing note was not updated; uploaded images may remain public. Inspect the operation image ledger before retrying.']
+        }
+      }
+    }
+    const finalHash = sha256Hex(finalHtml)
+    const encrypted = preview.encryption === 'encrypted'
+      ? await encryptModern(JSON.stringify({ content: finalHtml, basename: preview.title }), key)
+      : undefined
+    const template: NoteTemplate = {
+      filename: record.remoteFilename,
+      width: '', elements: [], encrypted: Boolean(encrypted),
+      content: encrypted ? JSON.stringify(encrypted.payload) : finalHtml,
+      ...(encrypted ? {} : { title: preview.title, description: '' }),
+      mathJax: false
+    }
+    const body: CreateNoteRequest = {
+      filename: record.remoteFilename, filetype: 'html',
+      hash: sha1Hex(template.content), template
+    }
     let response: { url?: string }
     try {
       response = await client.postJson<{ url?: string }>(PROTOCOL_PROFILE.routes.create, body)
@@ -242,14 +274,14 @@ export async function updateRecord(
       const page = await client.getPage(record.shareUrl)
       if (page.status === 200 && page.html) {
         verification.fetched = true
-        const decoded = await decodeSharePage(page.html, key)
-        verification.decrypted = true
-        verification.contentMatched = decoded.title === preview.title && sha256Hex(decoded.rawHtml) === preview.contentHash
+        const decoded = await decodeSharePage(page.html, key, record.webOrigin)
+        verification.decrypted = decoded.encrypted
+        verification.contentMatched = decoded.encrypted === (preview.encryption === 'encrypted') && decoded.title === preview.title && sha256Hex(decoded.rawHtml) === finalHash
       }
     } catch {
       // The submitted state is persisted below without claiming verification.
     }
-    const verified = verification.fetched && verification.decrypted && verification.contentMatched
+    const verified = verification.fetched && (preview.encryption === 'public' || verification.decrypted) && verification.contentMatched
     operation.status = verified ? 'verified' : 'submitted_unverified'
     operation.updatedAt = new Date().toISOString()
     record.status = operation.status
@@ -257,7 +289,8 @@ export async function updateRecord(
     if (verified) {
       record.sourcePath = preview.sourcePath
       record.sourceHash = preview.sourceHash
-      record.contentHash = preview.contentHash
+      record.contentHash = finalHash
+      record.encrypted = preview.encryption === 'encrypted'
       record.title = preview.title
       if (preview.theme) record.theme = preview.theme
       else delete record.theme
@@ -272,7 +305,7 @@ export async function updateRecord(
       operationId,
       verification,
       theme: preview.theme,
-      ...(request.returnShareUrl === true ? { shareUrl: `${record.shareUrl}#${key}` } : {}),
+      ...(request.returnShareUrl === true ? { shareUrl: preview.encryption === 'encrypted' ? `${record.shareUrl}#${key}` : record.shareUrl } : {}),
       warnings: verified ? [] : ['Update was submitted but did not pass read-back verification.']
     }
   })
@@ -301,7 +334,7 @@ export async function deleteRecord(
   return withLocalLock(dataDirectory, `project:${project.projectRoot}:record:${request.recordId}`, async () => {
     const record = await project.getRecord(request.recordId)
     assertRecordBinding(record, profile)
-    const key = await project.readNoteKey(record.noteKeyRef)
+    const key = record.encrypted ? await project.readNoteKey(record.noteKeyRef) : ''
     const credential = await secrets.readCredential(profile.credentialRef)
     const client = new ShareNoteHttpClient(profile, credential, fetchImplementation)
     const operationId = `op-${randomUUID()}`
