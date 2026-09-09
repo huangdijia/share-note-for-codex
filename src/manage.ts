@@ -1,3 +1,4 @@
+import { publicContentWarnings } from './render/public-content.js'
 import { randomUUID } from 'node:crypto'
 import { credentialIdentityReference, type ProfileConfig } from './config.js'
 import { encryptModern } from './crypto/codecs.js'
@@ -129,6 +130,8 @@ export async function updateRecord(
   operationId: string
   verification: { fetched: boolean; decrypted: boolean; contentMatched: boolean }
   theme: ThemeId | null
+  unchanged?: boolean
+  noteWriteSubmitted?: boolean
   shareUrl?: string
 }> {
   validateUpdateAuthorization(request, profile, projectBindingHash)
@@ -148,6 +151,9 @@ export async function updateRecord(
       (request.authorization.imageMode ?? 'inline') !== preview.imageMode
     ) {
       throw new ShareNoteError('content_blocked', 'Update preview is blocked or does not match the request')
+    }
+    if (preview.encryption === 'public' && publicContentWarnings(preview.bodyHtml).length > 0) {
+      throw new ShareNoteError('content_blocked', 'Public content contains unsupported server-template replacement sequences')
     }
     const source = await readSafeSource(
       preview.sourcePath,
@@ -170,9 +176,6 @@ export async function updateRecord(
       throw new ShareNoteError('conflict', 'Remote note changed since the last verified local record')
     }
 
-    if (preview.encryption === 'public' && /\$[&`']|TEMPLATE_[A-Z_]+/.test(preview.bodyHtml)) {
-      throw new ShareNoteError('content_blocked', 'Public content contains unsupported server-template replacement sequences')
-    }
     const previous = await project.listOperations()
     if (previous.some((item) => item.recordId === record.recordId &&
       (item.status === 'unknown' || item.status === 'pending') && item.imageUploads?.some((image) => image.status !== 'verified'))) {
@@ -216,6 +219,25 @@ export async function updateRecord(
       }
     }
     const finalHash = sha256Hex(finalHtml)
+    if (finalHash === record.contentHash && preview.title === record.title &&
+      (preview.encryption === 'encrypted') === record.encrypted && preview.theme === (record.theme ?? null)) {
+      operation.status = 'verified'
+      operation.updatedAt = new Date().toISOString()
+      operation.diagnostic = 'Remote baseline matched the requested content and mode; no note write was submitted.'
+      record.sourceHash = preview.sourceHash
+      record.status = 'verified'
+      record.updatedAt = operation.updatedAt
+      await project.saveRecord(record)
+      await project.writeOperation(operation)
+      return {
+        ok: true, action: 'update' as const, status: 'verified' as const,
+        recordId: record.recordId, operationId, theme: preview.theme,
+        unchanged: true, noteWriteSubmitted: false,
+        verification: { fetched: true, decrypted: record.encrypted, contentMatched: true },
+        ...(request.returnShareUrl === true ? { shareUrl: record.encrypted ? `${record.shareUrl}#${key}` : record.shareUrl } : {}),
+        warnings: []
+      }
+    }
     const encrypted = preview.encryption === 'encrypted'
       ? await encryptModern(JSON.stringify({ content: finalHtml, basename: preview.title }), key)
       : undefined
@@ -299,6 +321,8 @@ export async function updateRecord(
     await project.writeOperation(operation)
     return {
       ok: verified,
+      unchanged: false,
+      noteWriteSubmitted: true,
       action: 'update' as const,
       status: operation.status,
       recordId: record.recordId,
@@ -359,6 +383,7 @@ export async function deleteRecord(
       await project.writeOperation(operation)
       record.status = 'already_absent'
       record.updatedAt = new Date().toISOString()
+      record.deletedAt = record.updatedAt
       await project.saveRecord(record)
       return {
         ok: true,
@@ -443,11 +468,16 @@ export async function listLocalRecords(
     status: string
     theme?: ThemeId
     updatedAt: string
+    active: boolean
+    encrypted: boolean
+    deletedAt?: string
   }>
+  unresolvedOperations: Array<{ operationId: string; recordId: string; status: string; verifiedImages: number; unknownImages: number }>
   pendingOperations: number
 }> {
   const records = await project.listRecords(request.query)
-  const pendingOperations = (await project.listOperations('pending')).length
+  const operations = await project.listOperations()
+  const pendingOperations = operations.filter((operation) => operation.status === 'pending').length
   return {
     ok: true,
     action: 'list',
@@ -461,9 +491,17 @@ export async function listLocalRecords(
       shareUrl: record.shareUrl,
       status: record.status,
       ...(record.theme ? { theme: record.theme } : {}),
-      updatedAt: record.updatedAt
+      updatedAt: record.updatedAt,
+      active: !record.deletedAt && record.status !== 'already_absent',
+      encrypted: record.encrypted,
+      ...(record.deletedAt ? { deletedAt: record.deletedAt } : {})
     })),
     pendingOperations,
+    unresolvedOperations: operations.filter((operation) => operation.status === 'unknown' || operation.status === 'pending').map((operation) => ({
+      operationId: operation.operationId, recordId: operation.recordId, status: operation.status,
+      verifiedImages: operation.imageUploads?.filter((image) => image.status === 'verified').length ?? 0,
+      unknownImages: operation.imageUploads?.filter((image) => image.status !== 'verified').length ?? 0
+    })),
     warnings: ['This is the current project registry, not a complete remote account inventory.']
   }
 }

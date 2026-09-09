@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { publicContentWarnings } from './render/public-content.js'
 import { resolveImages, type ImageDependency } from './images.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { chmod, writeFile } from 'node:fs/promises'
@@ -19,6 +20,8 @@ import {
   type ThemeId
 } from './render/themes.js'
 
+export const PREVIEW_SCHEMA_VERSION = 5
+
 export interface PreviewRequest {
   sourcePath: string
   projectRoot: string
@@ -30,7 +33,7 @@ export interface PreviewRequest {
 }
 
 export interface PreviewMetadata {
-  schemaVersion: 5
+  schemaVersion: typeof PREVIEW_SCHEMA_VERSION
   previewId: string
   profile: string
   apiOrigin: string
@@ -55,6 +58,8 @@ export interface PreviewMetadata {
 
 export interface PreviewResult extends BaseResult {
   action: 'preview'
+  images: { mode: 'inline' | 'upload'; unique: number; occurrences: number; bytes: number }
+  visibility: 'encrypted-content' | 'public-content-and-images'
   previewId: string
   previewPath: string
   profile: string
@@ -120,6 +125,9 @@ export async function createPreview(
   const format = inferFormat(source.realPath, request.format)
   const assets = await resolveImages(source, format, request.projectRoot, profile)
   const rendered = renderDocument(source.content, format, fallbackTitle, theme, assets.images)
+  const publicWarnings = encryption === 'public' ? publicContentWarnings(rendered.bodyHtml) : []
+  const publishable = rendered.publishable && publicWarnings.length === 0
+  const imageBytes = assets.dependencies.reduce((sum, dependency) => sum + dependency.bytes * dependency.occurrences, 0)
   const previewId = `preview-${randomUUID()}`
   const previewDirectory = path.join(dataDirectory, 'previews')
   await ensurePrivateDirectory(previewDirectory)
@@ -127,7 +135,7 @@ export async function createPreview(
   await writeFile(previewPath, rendered.documentHtml, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
   await chmod(previewPath, 0o600)
   const metadata: PreviewMetadata = {
-    schemaVersion: 5,
+    schemaVersion: PREVIEW_SCHEMA_VERSION,
     previewId,
     profile: profile.name,
     apiOrigin: new URL(profile.apiBaseUrl).origin,
@@ -146,14 +154,16 @@ export async function createPreview(
     ...(record ? { recordId: record.recordId } : {}),
     encryption,
     imageMode,
-    publishable: rendered.publishable,
+    publishable,
     createdAt: new Date().toISOString()
   }
   await writeJsonAtomic(path.join(previewDirectory, `${previewId}.json`), metadata)
   return {
     ok: true,
     action: 'preview',
-    status: rendered.publishable ? 'previewed' : 'blocked',
+    images: { mode: imageMode, unique: assets.dependencies.length, occurrences: assets.dependencies.reduce((sum, dependency) => sum + dependency.occurrences, 0), bytes: imageBytes },
+    visibility: encryption === 'public' ? 'public-content-and-images' : 'encrypted-content',
+    status: publishable ? 'previewed' : 'blocked',
     previewId,
     previewPath,
     profile: profile.name,
@@ -167,14 +177,15 @@ export async function createPreview(
     theme,
     themeName,
     ...(record ? { recordId: record.recordId } : {}),
-    bytes: source.bytes + assets.dependencies.reduce((sum, dependency) => sum + dependency.bytes * dependency.occurrences, 0),
+    bytes: source.bytes + imageBytes,
     wordCount: rendered.wordCount,
     resources: rendered.resources,
     encryption,
     imageMode,
-    publishable: rendered.publishable,
+    publishable,
     warnings: [
       ...rendered.warnings,
+      ...publicWarnings,
       ...assets.warnings,
       ...(source.symbolicLink ? ['Source is a symbolic link whose resolved target was checked inside the allowed roots.'] : [])
     ]
@@ -197,7 +208,7 @@ export async function loadPreview(dataDirectory: string, previewId: string): Pro
       matchesThemedArticle(value.bodyHtml, value.theme) &&
       value.themeName === themeDefinition(value.theme).name)
   if (
-    value.schemaVersion !== 5 ||
+    value.schemaVersion !== PREVIEW_SCHEMA_VERSION ||
     !(value.encryption === 'encrypted' && value.imageMode === 'inline' || value.encryption === 'public' && value.imageMode === 'upload' && Boolean(value.recordId) && Boolean(value.theme)) ||
     !Array.isArray(value.imageDependencies) ||
     !value.imageDependencies.every((dependency) => dependency &&

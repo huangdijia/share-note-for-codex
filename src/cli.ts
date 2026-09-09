@@ -18,7 +18,7 @@ function usage(): never {
 
 async function requestFromArguments(arguments_: string[]): Promise<{ action: string; request: Record<string, unknown>; keyFromTty?: boolean }> {
   const [action, flag, requestPath, ...rest] = arguments_
-  if (action === 'themes' && arguments_.length === 1) {
+  if ((action === 'themes' || action === 'capabilities') && arguments_.length === 1) {
     return { action, request: {} }
   }
   if ((action === 'setup-browser' || action === 'setup-codex-browser') && arguments_.length === 1) {
@@ -125,11 +125,17 @@ async function main(): Promise<void> {
     case 'configure-project':
       result = await application.configureProject(request as never)
       break
+    case 'capabilities':
+      result = application.capabilities()
+      break
     case 'themes':
       result = application.themes()
       break
     case 'preview':
       result = await application.preview(request as never)
+      break
+    case 'link':
+      result = await application.link(request as never)
       break
     case 'read':
       result = await application.read(request as never)

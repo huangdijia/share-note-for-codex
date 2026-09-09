@@ -9,7 +9,7 @@ import {
   type ProfileSetupInput
 } from './config.js'
 import { ShareNoteError } from './errors.js'
-import { createPreview, type PreviewRequest } from './preview.js'
+import { createPreview, PREVIEW_SCHEMA_VERSION, type PreviewRequest } from './preview.js'
 import { PROTOCOL_PROFILE, PUBLIC_SHARE_NOTE_SERVICE } from './protocol/profile.js'
 import { decodeSharePage } from './read/page.js'
 import type { BaseResult } from './result.js'
@@ -40,7 +40,7 @@ import {
   type PendingBrowserSetup,
   type BrowserSetupService
 } from './state/pending-setup.js'
-import { DEFAULT_THEME, THEMES, parseTheme, type ThemeId } from './render/themes.js'
+import { DEFAULT_THEME, THEMES, THEME_IDS, parseTheme, type ThemeId } from './render/themes.js'
 
 export interface SetupRequest extends ProfileSetupInput {
   credentialEnvVar: string
@@ -249,6 +249,21 @@ export class ShareNoteApplication {
           ? ['Some legacy operations have no source record and could not be associated with this project.']
           : [])
       ]
+    }
+  }
+
+  capabilities() {
+    return {
+      ok: true, action: 'capabilities', status: 'verified',
+      protocolProfile: PROTOCOL_PROFILE.id,
+      previewSchemaVersion: PREVIEW_SCHEMA_VERSION,
+      themes: THEME_IDS,
+      modes: [
+        { encryption: 'encrypted', imageMode: 'inline', actions: ['publish', 'update'] },
+        { encryption: 'public', imageMode: 'upload', actions: ['update'] }
+      ],
+      actions: ['setup', 'setup-browser', 'setup-browser-start', 'setup-browser-complete', 'setup-codex-browser', 'setup-codex-browser-complete', 'doctor', 'configure-project', 'capabilities', 'themes', 'preview', 'read', 'link', 'publish', 'update', 'list', 'delete'],
+      warnings: []
     }
   }
 
@@ -711,6 +726,24 @@ export class ShareNoteApplication {
     rejectLegacyProjectFields(request)
     const context = await this.projectContext(request.projectRoot)
     return listLocalRecords(context.store, { ...request, projectRoot: context.store.projectRoot })
+  }
+
+  async link(request: { projectRoot: string; recordId: string }): Promise<BaseResult & {
+    action: 'link'; recordId: string; shareUrl: string; encrypted: boolean
+  }> {
+    rejectLegacyProjectFields(request)
+    const context = await this.projectContext(request.projectRoot)
+    const record = await context.store.getRecord(request.recordId)
+    if (record.deletedAt || record.status === 'already_absent') {
+      throw new ShareNoteError('not_found', 'The project record is marked absent or deleted')
+    }
+    const key = record.encrypted ? await context.store.readNoteKey(record.noteKeyRef) : undefined
+    return {
+      ok: true, action: 'link', status: 'verified', recordId: record.recordId,
+      shareUrl: key ? `${record.shareUrl}#${key}` : record.shareUrl,
+      encrypted: record.encrypted,
+      warnings: ['This link comes from the project record; remote availability was not checked.']
+    }
   }
 
   async read(request: ReadRequest): Promise<BaseResult & {
