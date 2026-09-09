@@ -33,6 +33,21 @@ ${'long-code-'.repeat(40)}
 \`\`\`
 `
 
+const EXPECTED_THEMES = [
+  { id: 'simple', name: '简洁', description: '白底、系统无衬线字体和蓝色链接。', systemDefault: true },
+  { id: 'technical', name: '技术', description: '更宽正文，并强化代码块和表格。', systemDefault: false },
+  { id: 'reading', name: '阅读', description: '暖白背景、系统衬线字体、窄栏宽和宽松行距。', systemDefault: false },
+  { id: 'dark', name: '深色', description: '深色正文阅读区域和浅色文字。', systemDefault: false },
+  { id: 'github', name: 'GitHub', description: 'GitHub 浅色 Markdown 排版，适合技术文档。', systemDefault: false },
+  { id: 'typora-github', name: 'Typora GitHub', description: 'Typora GitHub 适配版：白底、宽松留白和标题分隔线。', systemDefault: false },
+  { id: 'typora-newsprint', name: 'Typora Newsprint', description: 'Typora Newsprint 适配版：暖纸色、衬线字体和报刊排版。', systemDefault: false },
+  { id: 'typora-night', name: 'Typora Night', description: 'Typora Night 适配版：蓝灰背景和柔和文字。', systemDefault: false },
+  { id: 'obsidian', name: 'Obsidian', description: 'Obsidian 默认浅色适配版：紧凑阅读栏和紫色强调。', systemDefault: false },
+  { id: 'obsidian-dark', name: 'Obsidian 深色', description: 'Obsidian 默认深色适配版：深灰正文和紫色强调。', systemDefault: false }
+] as const
+
+const NEW_THEMES = EXPECTED_THEMES.slice(4)
+
 function sha256(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex')
 }
@@ -150,21 +165,22 @@ describe('built-in article themes', () => {
     return encrypted.key
   }
 
-  it('lists the four built-in themes and identifies the system default', () => {
+  it('lists the exact ten built-in themes and identifies the unchanged system default', () => {
     expect(application.themes()).toEqual({
       ok: true,
       action: 'themes',
       status: 'verified',
       defaultTheme: 'simple',
-      themes: THEMES,
+      themes: EXPECTED_THEMES,
       warnings: []
     })
-    expect(THEMES.map((theme) => theme.id)).toEqual(THEME_IDS)
+    expect(THEMES).toEqual(EXPECTED_THEMES)
+    expect(THEME_IDS).toEqual(EXPECTED_THEMES.map((theme) => theme.id))
   })
 
   it('renders scoped, self-contained fragments and hashes the selected CSS with the body', () => {
     const outputs = THEME_IDS.map((theme) => renderDocument(THEME_FIXTURE, 'markdown', 'fixture', theme))
-    expect(new Set(outputs.map((output) => output.contentHash)).size).toBe(4)
+    expect(new Set(outputs.map((output) => output.contentHash)).size).toBe(THEME_IDS.length)
     for (const [index, output] of outputs.entries()) {
       const theme = THEME_IDS[index]
       expect(output.bodyHtml).toContain(`<article class="share-note-article" data-share-note-theme="${theme}">`)
@@ -174,6 +190,10 @@ describe('built-in article themes', () => {
       expect(output.bodyHtml).not.toMatch(/@import|url\s*\(|<script|<link/i)
       expect(sha256(output.bodyHtml)).toBe(output.contentHash)
       expect(output.documentHtml).toContain(output.bodyHtml)
+      if (theme === 'github') {
+        expect(output.bodyHtml).toContain('Copyright (c) Sindre Sorhus')
+        expect(output.bodyHtml).toContain('Permission is hereby granted, free of charge')
+      }
     }
   })
 
@@ -214,6 +234,47 @@ describe('built-in article themes', () => {
     expect(decoded.html).not.toContain('.share-note-article')
     expect(decoded.markdown).not.toContain('share-note-article')
     expect(decoded.markdown).toContain('中英文 Theme')
+  })
+
+  it.each(NEW_THEMES)('supports $name throughout configure, publish, read-back, and update', async ({ id, name }) => {
+    await expect(application.configureProject({ projectRoot: project, defaultTheme: id }))
+      .resolves.toMatchObject({ profile: 'mock', defaultTheme: id })
+    await expect(application.preview({ projectRoot: project, sourcePath: 'theme.md' }))
+      .resolves.toMatchObject({ theme: id, themeName: name })
+
+    const { preview, result } = await publish(id)
+    expect(result).toMatchObject({ status: 'verified', theme: id })
+    const [baseUrl, key] = result.shareUrl!.split('#') as [string, string]
+    const pageHtml = await (await fetch(baseUrl)).text()
+    expect(pageHtml).not.toContain('share-note-theme')
+    const decoded = await decodeSharePage(pageHtml, key!)
+    expect(decoded.rawHtml).toContain(`data-share-note-theme="${id}"`)
+    expect(decoded.rawHtml).toContain('<style>')
+    expect(sha256(decoded.rawHtml)).toBe(preview.contentHash)
+    expect(decoded.html).not.toContain('<style>')
+    expect(decoded.html).not.toContain('.share-note-article')
+    expect(decoded.markdown).not.toContain('share-note-article')
+    expect(decoded.markdown).toContain('中英文 Theme')
+
+    await application.configureProject({ projectRoot: project, defaultTheme: 'simple' })
+    await writeFile(path.join(project, 'theme.md'), `# Updated ${name}\n\nversion two`)
+    const preserved = await application.preview({
+      projectRoot: project,
+      sourcePath: 'theme.md',
+      recordId: result.recordId
+    })
+    expect(preserved).toMatchObject({ recordId: result.recordId, theme: id, themeName: name })
+    await expect(application.update(updateRequest(preserved, result.recordId)))
+      .resolves.toMatchObject({ status: 'verified', theme: id })
+
+    const switched = await application.preview({
+      projectRoot: project,
+      sourcePath: 'theme.md',
+      recordId: result.recordId,
+      theme: 'simple'
+    })
+    expect(switched).toMatchObject({ theme: 'simple', themeName: '简洁' })
+    expect(switched.contentHash).not.toBe(preserved.contentHash)
   })
 
   it('binds update previews to the record and preserves or explicitly changes its theme', async () => {

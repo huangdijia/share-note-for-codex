@@ -11,6 +11,18 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const pluginRoot = path.join(root, 'plugins', 'share-note')
 const bundle = path.join(pluginRoot, 'skills', 'share-note', 'scripts', 'share-note.mjs')
 const temporaryDirectories: string[] = []
+const EXPECTED_THEMES = [
+  { id: 'simple', name: '简洁', description: '白底、系统无衬线字体和蓝色链接。', systemDefault: true },
+  { id: 'technical', name: '技术', description: '更宽正文，并强化代码块和表格。', systemDefault: false },
+  { id: 'reading', name: '阅读', description: '暖白背景、系统衬线字体、窄栏宽和宽松行距。', systemDefault: false },
+  { id: 'dark', name: '深色', description: '深色正文阅读区域和浅色文字。', systemDefault: false },
+  { id: 'github', name: 'GitHub', description: 'GitHub 浅色 Markdown 排版，适合技术文档。', systemDefault: false },
+  { id: 'typora-github', name: 'Typora GitHub', description: 'Typora GitHub 适配版：白底、宽松留白和标题分隔线。', systemDefault: false },
+  { id: 'typora-newsprint', name: 'Typora Newsprint', description: 'Typora Newsprint 适配版：暖纸色、衬线字体和报刊排版。', systemDefault: false },
+  { id: 'typora-night', name: 'Typora Night', description: 'Typora Night 适配版：蓝灰背景和柔和文字。', systemDefault: false },
+  { id: 'obsidian', name: 'Obsidian', description: 'Obsidian 默认浅色适配版：紧凑阅读栏和紫色强调。', systemDefault: false },
+  { id: 'obsidian-dark', name: 'Obsidian 深色', description: 'Obsidian 默认深色适配版：深灰正文和紫色强调。', systemDefault: false }
+] as const
 
 afterEach(async () => {
   await Promise.all(temporaryDirectories.splice(0).map(async (directory) => {
@@ -100,6 +112,31 @@ describe('M4 packaged plugin acceptance', () => {
     expect(JSON.parse(await readFile(path.join(projectPath, '.openai', 'share-note.json'), 'utf8')))
       .toMatchObject({ schemaVersion: 1, profile: 'clean', records: [], operations: [] })
     expect(await readdir(clean)).not.toContain('node_modules')
+  })
+
+  it('lists the exact theme catalog from the precompiled bundle without credentials or node_modules', async () => {
+    const clean = await mkdtemp(path.join(tmpdir(), 'share-note-clean-themes-'))
+    temporaryDirectories.push(clean)
+    const cleanBundle = path.join(clean, 'share-note.mjs')
+    await copyFile(bundle, cleanBundle)
+    const { stdout } = await execute(process.execPath, [cleanBundle, 'themes'], {
+      cwd: clean,
+      env: {
+        PATH: process.env.PATH,
+        SystemRoot: process.env.SystemRoot,
+        WINDIR: process.env.WINDIR,
+        SHARE_NOTE_DATA_DIR: path.join(clean, 'data')
+      }
+    })
+    expect(JSON.parse(stdout)).toEqual({
+      ok: true,
+      action: 'themes',
+      status: 'verified',
+      defaultTheme: 'simple',
+      themes: EXPECTED_THEMES,
+      warnings: []
+    })
+    expect(await readdir(clean)).toEqual(['share-note.mjs'])
   })
 
   it('uses private plaintext secret files from the precompiled bundle', async () => {

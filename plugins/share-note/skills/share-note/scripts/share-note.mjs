@@ -30533,14 +30533,357 @@ function escapeHtml(value) {
   })[character] ?? character);
 }
 
+// src/render/themes/github.ts
+var githubCss = `
+/*!
+ * github-markdown-css — MIT License
+ * Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+.share-note-article[data-share-note-theme="github"] {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+  font-weight: 400;
+  color: #1f2328;
+  background-color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  font-size: 16px;
+  line-height: 1.5;
+  max-width: 980px;
+  padding: 40px 45px;
+}
+.share-note-article[data-share-note-theme="github"] a { color: #0969da; text-decoration: none; text-underline-offset: .2rem; }
+.share-note-article[data-share-note-theme="github"] a:hover { text-decoration: underline; }
+.share-note-article[data-share-note-theme="github"] a:focus-visible { outline: 2px solid #0969da; outline-offset: 2px; }
+.share-note-article[data-share-note-theme="github"] strong { font-weight: 600; }
+.share-note-article[data-share-note-theme="github"] h1,
+.share-note-article[data-share-note-theme="github"] h2,
+.share-note-article[data-share-note-theme="github"] h3,
+.share-note-article[data-share-note-theme="github"] h4,
+.share-note-article[data-share-note-theme="github"] h5,
+.share-note-article[data-share-note-theme="github"] h6 { margin-top: 1.5rem; margin-bottom: 1rem; font-weight: 600; line-height: 1.25; }
+.share-note-article[data-share-note-theme="github"] h1 { padding-bottom: .3em; font-size: 2em; border-bottom: 1px solid #d1d9e0b3; }
+.share-note-article[data-share-note-theme="github"] h2 { padding-bottom: .3em; font-size: 1.5em; border-bottom: 1px solid #d1d9e0b3; }
+.share-note-article[data-share-note-theme="github"] h3 { font-size: 1.25em; }
+.share-note-article[data-share-note-theme="github"] h4 { font-size: 1em; }
+.share-note-article[data-share-note-theme="github"] h5 { font-size: .875em; }
+.share-note-article[data-share-note-theme="github"] h6 { font-size: .85em; color: #59636e; }
+.share-note-article[data-share-note-theme="github"] .share-note-content > :first-child { margin-top: 0; }
+.share-note-article[data-share-note-theme="github"] .share-note-content > :last-child { margin-bottom: 0; }
+.share-note-article[data-share-note-theme="github"] p,
+.share-note-article[data-share-note-theme="github"] blockquote,
+.share-note-article[data-share-note-theme="github"] ul,
+.share-note-article[data-share-note-theme="github"] ol,
+.share-note-article[data-share-note-theme="github"] table,
+.share-note-article[data-share-note-theme="github"] pre { margin-top: 0; margin-bottom: 1rem; }
+.share-note-article[data-share-note-theme="github"] blockquote { padding: 0 1em; color: #59636e; border-left: .25em solid #d1d9e0; }
+.share-note-article[data-share-note-theme="github"] blockquote > :first-child { margin-top: 0; }
+.share-note-article[data-share-note-theme="github"] blockquote > :last-child { margin-bottom: 0; }
+.share-note-article[data-share-note-theme="github"] ul,
+.share-note-article[data-share-note-theme="github"] ol { padding-left: 2em; }
+.share-note-article[data-share-note-theme="github"] ol ol,
+.share-note-article[data-share-note-theme="github"] ul ol { list-style-type: lower-roman; }
+.share-note-article[data-share-note-theme="github"] ul ul ol,
+.share-note-article[data-share-note-theme="github"] ul ol ol,
+.share-note-article[data-share-note-theme="github"] ol ul ol,
+.share-note-article[data-share-note-theme="github"] ol ol ol { list-style-type: lower-alpha; }
+.share-note-article[data-share-note-theme="github"] ul ul,
+.share-note-article[data-share-note-theme="github"] ul ol,
+.share-note-article[data-share-note-theme="github"] ol ol,
+.share-note-article[data-share-note-theme="github"] ol ul { margin-top: 0; margin-bottom: 0; }
+.share-note-article[data-share-note-theme="github"] li > p { margin-top: 1rem; }
+.share-note-article[data-share-note-theme="github"] li + li { margin-top: .25em; }
+.share-note-article[data-share-note-theme="github"] table { border-spacing: 0; font-variant: tabular-nums; }
+.share-note-article[data-share-note-theme="github"] th { background: transparent; font-weight: 600; }
+.share-note-article[data-share-note-theme="github"] th,
+.share-note-article[data-share-note-theme="github"] td { padding: 6px 13px; border: 1px solid #d1d9e0; }
+.share-note-article[data-share-note-theme="github"] tr { background-color: #ffffff; border-top: 1px solid #d1d9e0b3; }
+.share-note-article[data-share-note-theme="github"] tr:nth-child(2n) { background-color: #f6f8fa; }
+.share-note-article[data-share-note-theme="github"] code,
+.share-note-article[data-share-note-theme="github"] pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+.share-note-article[data-share-note-theme="github"] :not(pre) > code { padding: .2em .4em; margin: 0; font-size: 85%; white-space: break-spaces; background-color: #818b981f; border-radius: 6px; }
+.share-note-article[data-share-note-theme="github"] h1 code,
+.share-note-article[data-share-note-theme="github"] h2 code,
+.share-note-article[data-share-note-theme="github"] h3 code,
+.share-note-article[data-share-note-theme="github"] h4 code,
+.share-note-article[data-share-note-theme="github"] h5 code,
+.share-note-article[data-share-note-theme="github"] h6 code { padding: 0 .2em; font-size: inherit; }
+.share-note-article[data-share-note-theme="github"] pre { padding: 1rem; font-size: 85%; line-height: 1.45; color: #1f2328; background-color: #f6f8fa; border: 0; border-radius: 6px; word-wrap: normal; }
+.share-note-article[data-share-note-theme="github"] pre code { display: inline; padding: 0; margin: 0; font-size: 100%; overflow: visible; line-height: inherit; word-wrap: normal; white-space: pre; background: transparent; border: 0; }
+.share-note-article[data-share-note-theme="github"] hr { height: .25em; padding: 0; margin: 1.5rem 0; background-color: #d1d9e0; border: 0; }
+@media (max-width: 640px) {
+  .share-note-article[data-share-note-theme="github"] { padding: 24px 16px; }
+}
+`;
+
+// src/render/themes/typora-github.ts
+var typoraGithubCss = `
+.share-note-article[data-share-note-theme="typora-github"] {
+  color-scheme: light;
+  background: #ffffff;
+  color: #333333;
+  font-family: "Open Sans", "Clear Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 860px;
+  padding: 32px 30px 80px;
+}
+.share-note-article[data-share-note-theme="typora-github"] h1,
+.share-note-article[data-share-note-theme="typora-github"] h2,
+.share-note-article[data-share-note-theme="typora-github"] h3,
+.share-note-article[data-share-note-theme="typora-github"] h4,
+.share-note-article[data-share-note-theme="typora-github"] h5,
+.share-note-article[data-share-note-theme="typora-github"] h6 { font-weight: 700; margin: 1.2em 0 .6em; line-height: 1.4; }
+.share-note-article[data-share-note-theme="typora-github"] h1 { font-size: 2.25em; border-bottom: 1px solid #eeeeee; padding-bottom: .3em; }
+.share-note-article[data-share-note-theme="typora-github"] h2 { font-size: 1.75em; border-bottom: 1px solid #eeeeee; padding-bottom: .3em; }
+.share-note-article[data-share-note-theme="typora-github"] h3 { font-size: 1.5em; }
+.share-note-article[data-share-note-theme="typora-github"] h4 { font-size: 1.25em; }
+.share-note-article[data-share-note-theme="typora-github"] h5,
+.share-note-article[data-share-note-theme="typora-github"] h6 { font-size: 1em; }
+.share-note-article[data-share-note-theme="typora-github"] h6 { color: #777777; }
+.share-note-article[data-share-note-theme="typora-github"] .share-note-content > :first-child { margin-top: 0; }
+.share-note-article[data-share-note-theme="typora-github"] p,
+.share-note-article[data-share-note-theme="typora-github"] ul,
+.share-note-article[data-share-note-theme="typora-github"] ol { margin-bottom: .8em; }
+.share-note-article[data-share-note-theme="typora-github"] a { color: #4183c4; text-decoration: none; }
+.share-note-article[data-share-note-theme="typora-github"] a:hover { text-decoration: underline; }
+.share-note-article[data-share-note-theme="typora-github"] blockquote { border-left: 4px solid #dfe2e5; color: #777777; padding: 0 15px; }
+.share-note-article[data-share-note-theme="typora-github"] blockquote > :last-child { margin-bottom: 0; }
+.share-note-article[data-share-note-theme="typora-github"] code,
+.share-note-article[data-share-note-theme="typora-github"] pre { font-family: Menlo, Monaco, Consolas, "Courier New", monospace; }
+.share-note-article[data-share-note-theme="typora-github"] :not(pre) > code { background: #f8f8f8; border: 1px solid #e7eaed; border-radius: 3px; padding: 2px 4px; font-size: .9em; }
+.share-note-article[data-share-note-theme="typora-github"] pre { background: #f8f8f8; border: 1px solid #e7eaed; border-radius: 3px; padding: 12px 16px; font-size: .9em; line-height: 1.6; }
+.share-note-article[data-share-note-theme="typora-github"] th { background: #ffffff; font-weight: 700; }
+.share-note-article[data-share-note-theme="typora-github"] th,
+.share-note-article[data-share-note-theme="typora-github"] td { border: 1px solid #dfe2e5; padding: 6px 13px; }
+.share-note-article[data-share-note-theme="typora-github"] tr:nth-child(2n) { background: #f8f8f8; }
+.share-note-article[data-share-note-theme="typora-github"] hr { border-top: 2px solid #e7e7e7; margin: 1.5em 0; }
+@media (max-width: 640px) {
+  .share-note-article[data-share-note-theme="typora-github"] { padding: 24px 18px 48px; }
+  .share-note-article[data-share-note-theme="typora-github"] h1 { font-size: 1.9em; }
+}
+`;
+
+// src/render/themes/typora-newsprint.ts
+var typoraNewsprintCss = `
+.share-note-article[data-share-note-theme="typora-newsprint"] {
+  color-scheme: light;
+  background: #f3f2ee;
+  color: #1f0909;
+  font-family: "PT Serif", Georgia, "Songti SC", SimSun, serif;
+  font-size: 16px;
+  line-height: 1.5;
+  max-width: 840px;
+  padding: 36px 48px 72px;
+}
+.share-note-article[data-share-note-theme="typora-newsprint"] h1,
+.share-note-article[data-share-note-theme="typora-newsprint"] h2,
+.share-note-article[data-share-note-theme="typora-newsprint"] h3,
+.share-note-article[data-share-note-theme="typora-newsprint"] h4,
+.share-note-article[data-share-note-theme="typora-newsprint"] h5,
+.share-note-article[data-share-note-theme="typora-newsprint"] h6 { font-weight: 700; line-height: 1.3; margin: 1.4em 0 .6em; }
+.share-note-article[data-share-note-theme="typora-newsprint"] h1 { font-size: 2.5em; }
+.share-note-article[data-share-note-theme="typora-newsprint"] h2 { font-size: 2em; }
+.share-note-article[data-share-note-theme="typora-newsprint"] h3 { font-size: 1.5em; }
+.share-note-article[data-share-note-theme="typora-newsprint"] h4 { font-size: 1.25em; }
+.share-note-article[data-share-note-theme="typora-newsprint"] h5 { font-size: 1em; }
+.share-note-article[data-share-note-theme="typora-newsprint"] h6 { font-size: .875em; }
+.share-note-article[data-share-note-theme="typora-newsprint"] .share-note-content > :first-child { margin-top: 0; }
+.share-note-article[data-share-note-theme="typora-newsprint"] a { color: #1f0909; text-decoration: underline; }
+.share-note-article[data-share-note-theme="typora-newsprint"] blockquote { border-left: 4px solid #b9b4aa; color: #65615b; font-style: italic; padding: .2em 1.25em; }
+.share-note-article[data-share-note-theme="typora-newsprint"] blockquote > :last-child { margin-bottom: 0; }
+.share-note-article[data-share-note-theme="typora-newsprint"] code,
+.share-note-article[data-share-note-theme="typora-newsprint"] pre { font-family: "Courier New", Courier, monospace; }
+.share-note-article[data-share-note-theme="typora-newsprint"] :not(pre) > code { background: #e9e7e0; border-radius: 2px; padding: .1em .3em; font-size: .9em; }
+.share-note-article[data-share-note-theme="typora-newsprint"] pre { background: #e9e7e0; border: 1px solid #dad7ce; border-radius: 0; padding: 14px 18px; font-size: .9em; line-height: 1.5; }
+.share-note-article[data-share-note-theme="typora-newsprint"] th { background: #e5e2d9; font-weight: 700; }
+.share-note-article[data-share-note-theme="typora-newsprint"] th,
+.share-note-article[data-share-note-theme="typora-newsprint"] td { border: 1px solid #c8c4b9; padding: 6px 12px; }
+.share-note-article[data-share-note-theme="typora-newsprint"] tr:nth-child(2n) { background: #eceae3; }
+.share-note-article[data-share-note-theme="typora-newsprint"] hr { border-top: 1px solid #9b9589; margin: 2em 0; }
+@media (max-width: 640px) {
+  .share-note-article[data-share-note-theme="typora-newsprint"] { padding: 26px 20px 48px; }
+  .share-note-article[data-share-note-theme="typora-newsprint"] h1 { font-size: 2em; }
+  .share-note-article[data-share-note-theme="typora-newsprint"] h2 { font-size: 1.65em; }
+}
+`;
+
+// src/render/themes/typora-night.ts
+var typoraNightCss = `
+.share-note-article[data-share-note-theme="typora-night"] {
+  color-scheme: dark;
+  background: #363b40;
+  color: #b8bfc6;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.625;
+  max-width: 914px;
+  padding: 32px 40px 72px;
+}
+.share-note-article[data-share-note-theme="typora-night"] h1,
+.share-note-article[data-share-note-theme="typora-night"] h2,
+.share-note-article[data-share-note-theme="typora-night"] h3,
+.share-note-article[data-share-note-theme="typora-night"] h4,
+.share-note-article[data-share-note-theme="typora-night"] h5,
+.share-note-article[data-share-note-theme="typora-night"] h6 { color: #dedede; font-weight: 600; margin: 1.4em 0 .65em; }
+.share-note-article[data-share-note-theme="typora-night"] h1 { font-size: 2.25em; }
+.share-note-article[data-share-note-theme="typora-night"] h2 { font-size: 1.75em; }
+.share-note-article[data-share-note-theme="typora-night"] h3 { font-size: 1.5em; }
+.share-note-article[data-share-note-theme="typora-night"] h4 { font-size: 1.25em; }
+.share-note-article[data-share-note-theme="typora-night"] h5 { font-size: 1em; }
+.share-note-article[data-share-note-theme="typora-night"] h6 { font-size: .875em; color: #b8bfc6; }
+.share-note-article[data-share-note-theme="typora-night"] .share-note-content > :first-child { margin-top: 0; }
+.share-note-article[data-share-note-theme="typora-night"] a { color: #a3d5fe; text-decoration: none; }
+.share-note-article[data-share-note-theme="typora-night"] a:hover { text-decoration: underline; }
+.share-note-article[data-share-note-theme="typora-night"] blockquote { color: #a8b1ba; border-left: 4px solid #707d8a; padding: .2em 1em; }
+.share-note-article[data-share-note-theme="typora-night"] blockquote > :last-child { margin-bottom: 0; }
+.share-note-article[data-share-note-theme="typora-night"] code,
+.share-note-article[data-share-note-theme="typora-night"] pre { font-family: Menlo, Monaco, Consolas, monospace; }
+.share-note-article[data-share-note-theme="typora-night"] :not(pre) > code { background: #2e3338; color: #d1d8df; border-radius: 3px; font-size: .9em; }
+.share-note-article[data-share-note-theme="typora-night"] pre { background: #2e3338; color: #d1d8df; border: 1px solid #464c53; border-radius: 3px; padding: 16px; font-size: .9em; line-height: 1.6; }
+.share-note-article[data-share-note-theme="typora-night"] th { background: #2e3338; color: #dedede; }
+.share-note-article[data-share-note-theme="typora-night"] th,
+.share-note-article[data-share-note-theme="typora-night"] td { border: 1px solid #555d66; padding: 6px 13px; }
+.share-note-article[data-share-note-theme="typora-night"] tr:nth-child(2n) { background: #32373c; }
+.share-note-article[data-share-note-theme="typora-night"] hr { border-top: 2px solid #555d66; margin: 2em 0; }
+@media (min-width: 1400px) {
+  .share-note-article[data-share-note-theme="typora-night"] { max-width: 1024px; }
+}
+@media (min-width: 1800px) {
+  .share-note-article[data-share-note-theme="typora-night"] { max-width: 1200px; }
+}
+@media (max-width: 640px) {
+  .share-note-article[data-share-note-theme="typora-night"] { padding: 24px 18px 48px; }
+  .share-note-article[data-share-note-theme="typora-night"] h1 { font-size: 1.9em; }
+}
+`;
+
+// src/render/themes/obsidian.ts
+var obsidianCss = `
+.share-note-article[data-share-note-theme="obsidian"] {
+  color-scheme: light;
+  background: #ffffff;
+  color: #222222;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  max-width: 764px;
+  padding: 32px 32px 64px;
+}
+.share-note-article[data-share-note-theme="obsidian"] h1,
+.share-note-article[data-share-note-theme="obsidian"] h2,
+.share-note-article[data-share-note-theme="obsidian"] h3,
+.share-note-article[data-share-note-theme="obsidian"] h4,
+.share-note-article[data-share-note-theme="obsidian"] h5,
+.share-note-article[data-share-note-theme="obsidian"] h6 { font-weight: 600; line-height: 1.3; margin: 1.5em 0 .5em; }
+.share-note-article[data-share-note-theme="obsidian"] h1 { font-size: 1.802em; font-weight: 700; }
+.share-note-article[data-share-note-theme="obsidian"] h2 { font-size: 1.602em; }
+.share-note-article[data-share-note-theme="obsidian"] h3 { font-size: 1.424em; }
+.share-note-article[data-share-note-theme="obsidian"] h4 { font-size: 1.266em; }
+.share-note-article[data-share-note-theme="obsidian"] h5 { font-size: 1.125em; }
+.share-note-article[data-share-note-theme="obsidian"] h6 { font-size: 1em; color: #666666; }
+.share-note-article[data-share-note-theme="obsidian"] .share-note-content > :first-child { margin-top: 0; }
+.share-note-article[data-share-note-theme="obsidian"] p,
+.share-note-article[data-share-note-theme="obsidian"] ul,
+.share-note-article[data-share-note-theme="obsidian"] ol { margin-bottom: 1em; }
+.share-note-article[data-share-note-theme="obsidian"] li + li { margin-top: .15em; }
+.share-note-article[data-share-note-theme="obsidian"] li::marker { color: #666666; }
+.share-note-article[data-share-note-theme="obsidian"] a { color: #7852ee; text-decoration: underline; }
+.share-note-article[data-share-note-theme="obsidian"] a:focus-visible { outline: 2px solid #7852ee; outline-offset: 2px; }
+.share-note-article[data-share-note-theme="obsidian"] blockquote { border-left: 2px solid #7852ee; padding: 0 0 0 1.5em; color: #222222; }
+.share-note-article[data-share-note-theme="obsidian"] blockquote > :last-child { margin-bottom: 0; }
+.share-note-article[data-share-note-theme="obsidian"] code,
+.share-note-article[data-share-note-theme="obsidian"] pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+.share-note-article[data-share-note-theme="obsidian"] :not(pre) > code { color: #7852ee; background: #f5f5f5; border-radius: 4px; padding: .1em .25em; font-size: .875em; }
+.share-note-article[data-share-note-theme="obsidian"] pre { background: #f5f5f5; border: 0; border-radius: 4px; padding: 16px; font-size: .875em; line-height: 1.5; }
+.share-note-article[data-share-note-theme="obsidian"] th { background: #f5f5f5; font-weight: 600; }
+.share-note-article[data-share-note-theme="obsidian"] th,
+.share-note-article[data-share-note-theme="obsidian"] td { border: 1px solid #e0e0e0; padding: 6px 10px; }
+.share-note-article[data-share-note-theme="obsidian"] tr:nth-child(2n) { background: #fafafa; }
+.share-note-article[data-share-note-theme="obsidian"] hr { border-top: 1px solid #e0e0e0; margin: 2em 0; }
+@media (max-width: 640px) {
+  .share-note-article[data-share-note-theme="obsidian"] { padding: 24px 20px 48px; }
+}
+`;
+
+// src/render/themes/obsidian-dark.ts
+var obsidianDarkCss = `
+.share-note-article[data-share-note-theme="obsidian-dark"] {
+  color-scheme: dark;
+  background: #1e1e1e;
+  color: #dadada;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  max-width: 764px;
+  padding: 32px 32px 64px;
+}
+.share-note-article[data-share-note-theme="obsidian-dark"] h1,
+.share-note-article[data-share-note-theme="obsidian-dark"] h2,
+.share-note-article[data-share-note-theme="obsidian-dark"] h3,
+.share-note-article[data-share-note-theme="obsidian-dark"] h4,
+.share-note-article[data-share-note-theme="obsidian-dark"] h5,
+.share-note-article[data-share-note-theme="obsidian-dark"] h6 { font-weight: 600; line-height: 1.3; margin: 1.5em 0 .5em; }
+.share-note-article[data-share-note-theme="obsidian-dark"] h1 { font-size: 1.802em; font-weight: 700; }
+.share-note-article[data-share-note-theme="obsidian-dark"] h2 { font-size: 1.602em; }
+.share-note-article[data-share-note-theme="obsidian-dark"] h3 { font-size: 1.424em; }
+.share-note-article[data-share-note-theme="obsidian-dark"] h4 { font-size: 1.266em; }
+.share-note-article[data-share-note-theme="obsidian-dark"] h5 { font-size: 1.125em; }
+.share-note-article[data-share-note-theme="obsidian-dark"] h6 { font-size: 1em; color: #b3b3b3; }
+.share-note-article[data-share-note-theme="obsidian-dark"] .share-note-content > :first-child { margin-top: 0; }
+.share-note-article[data-share-note-theme="obsidian-dark"] p,
+.share-note-article[data-share-note-theme="obsidian-dark"] ul,
+.share-note-article[data-share-note-theme="obsidian-dark"] ol { margin-bottom: 1em; }
+.share-note-article[data-share-note-theme="obsidian-dark"] li + li { margin-top: .15em; }
+.share-note-article[data-share-note-theme="obsidian-dark"] li::marker { color: #b3b3b3; }
+.share-note-article[data-share-note-theme="obsidian-dark"] a { color: #a88bfa; text-decoration: underline; }
+.share-note-article[data-share-note-theme="obsidian-dark"] a:focus-visible { outline: 2px solid #a88bfa; outline-offset: 2px; }
+.share-note-article[data-share-note-theme="obsidian-dark"] blockquote { border-left: 2px solid #a88bfa; padding: 0 0 0 1.5em; color: #dadada; }
+.share-note-article[data-share-note-theme="obsidian-dark"] blockquote > :last-child { margin-bottom: 0; }
+.share-note-article[data-share-note-theme="obsidian-dark"] code,
+.share-note-article[data-share-note-theme="obsidian-dark"] pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+.share-note-article[data-share-note-theme="obsidian-dark"] :not(pre) > code { color: #a88bfa; background: #262626; border-radius: 4px; padding: .1em .25em; font-size: .875em; }
+.share-note-article[data-share-note-theme="obsidian-dark"] pre { background: #262626; border: 0; border-radius: 4px; padding: 16px; font-size: .875em; line-height: 1.5; }
+.share-note-article[data-share-note-theme="obsidian-dark"] th { background: #262626; font-weight: 600; }
+.share-note-article[data-share-note-theme="obsidian-dark"] th,
+.share-note-article[data-share-note-theme="obsidian-dark"] td { border: 1px solid #404040; padding: 6px 10px; }
+.share-note-article[data-share-note-theme="obsidian-dark"] tr:nth-child(2n) { background: #2a2a2a; }
+.share-note-article[data-share-note-theme="obsidian-dark"] hr { border-top: 1px solid #404040; margin: 2em 0; }
+@media (max-width: 640px) {
+  .share-note-article[data-share-note-theme="obsidian-dark"] { padding: 24px 20px 48px; }
+}
+`;
+
 // src/render/themes.ts
-var THEME_IDS = ["simple", "technical", "reading", "dark"];
+var THEME_IDS = [
+  "simple",
+  "technical",
+  "reading",
+  "dark",
+  "github",
+  "typora-github",
+  "typora-newsprint",
+  "typora-night",
+  "obsidian",
+  "obsidian-dark"
+];
 var DEFAULT_THEME = "simple";
 var THEMES = [
   { id: "simple", name: "简洁", description: "白底、系统无衬线字体和蓝色链接。", systemDefault: true },
   { id: "technical", name: "技术", description: "更宽正文，并强化代码块和表格。", systemDefault: false },
   { id: "reading", name: "阅读", description: "暖白背景、系统衬线字体、窄栏宽和宽松行距。", systemDefault: false },
-  { id: "dark", name: "深色", description: "深色正文阅读区域和浅色文字。", systemDefault: false }
+  { id: "dark", name: "深色", description: "深色正文阅读区域和浅色文字。", systemDefault: false },
+  { id: "github", name: "GitHub", description: "GitHub 浅色 Markdown 排版，适合技术文档。", systemDefault: false },
+  { id: "typora-github", name: "Typora GitHub", description: "Typora GitHub 适配版：白底、宽松留白和标题分隔线。", systemDefault: false },
+  { id: "typora-newsprint", name: "Typora Newsprint", description: "Typora Newsprint 适配版：暖纸色、衬线字体和报刊排版。", systemDefault: false },
+  { id: "typora-night", name: "Typora Night", description: "Typora Night 适配版：蓝灰背景和柔和文字。", systemDefault: false },
+  { id: "obsidian", name: "Obsidian", description: "Obsidian 默认浅色适配版：紧凑阅读栏和紫色强调。", systemDefault: false },
+  { id: "obsidian-dark", name: "Obsidian 深色", description: "Obsidian 默认深色适配版：深灰正文和紫色强调。", systemDefault: false }
 ];
 var THEME_BY_ID = new Map(THEMES.map((theme) => [theme.id, theme]));
 function parseTheme(value, fieldName = "theme") {
@@ -30645,6 +30988,12 @@ var COMMON_CSS = `
 }
 `;
 var THEME_CSS = {
+  "github": githubCss,
+  "typora-github": typoraGithubCss,
+  "typora-newsprint": typoraNewsprintCss,
+  "typora-night": typoraNightCss,
+  "obsidian": obsidianCss,
+  "obsidian-dark": obsidianDarkCss,
   simple: `
 .share-note-article[data-share-note-theme="simple"] {
   background: #ffffff;

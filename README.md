@@ -200,16 +200,22 @@ Run `node /absolute/path/to/share-note.mjs themes` to list the built-in styles w
 | `technical` | 技术 | Wider article with stronger code and table treatment |
 | `reading` | 阅读 | Warm background, system serif, narrower measure and generous line spacing |
 | `dark` | 深色 | Dark article area with light text; the service's outer interface is unchanged |
+| `github` | GitHub | GitHub light Markdown layout for technical documents |
+| `typora-github` | Typora GitHub | White Typora-inspired layout with generous spacing and heading rules |
+| `typora-newsprint` | Typora Newsprint | Warm paper, serif type and newspaper-inspired layout |
+| `typora-night` | Typora Night | Blue-gray article area with soft light text |
+| `obsidian` | Obsidian | Compact light reading column with purple accents |
+| `obsidian-dark` | Obsidian 深色 | Dark gray reading column with purple accents |
 
 Set `"defaultTheme": "technical"` through `configure-project` for a project default. On an already configured project, omit `profile` to preserve its binding. This changes the default for new previews only and preserves records and operations. Existing projects without this field use `simple` for new shares.
 
 Add `"theme": "reading"` to a `preview` request for a one-time override. The result includes `theme` (the actual theme identifier) and `themeName` (display name). A legacy unthemed update preview reports `theme: null`. Publish uses that preview exactly; changing a theme requires a new preview and its new content hash.
 
-For new publications through Codex, the agent asks you to choose simple, technical, reading, or dark before creating the preview, recommending the project default (or `simple`). It uses Codex's interactive question tool when available, otherwise a conversation question, and waits for your choice. Say “share with the reading style” or “use the default style” to skip the question. A one-time choice does not change the project default or authorize an upload. Direct CLI and preview-only requests keep their default behavior; updates preserve the existing style unless you request a change.
+For new publications through Codex, the agent asks you to choose from the built-in catalog before creating the preview, recommending the project default (or `simple`). It uses Codex's interactive question tool when available, otherwise a conversation question, and waits for your choice. Say “share with the reading style” or “use the default style” to skip the question. Natural “Typora” and “Obsidian” requests select `typora-github` and `obsidian`; request `typora-night` or `obsidian-dark` explicitly for their dark variants. A one-time choice does not change the project default or authorize an upload. Direct CLI and preview-only requests keep their default behavior; updates preserve the existing style unless you request a change.
 
 For updates, include the target `recordId` in the **preview** request as well as the update request. The source must match that project's record. Without an explicit theme, the preview preserves the record's style, regardless of the current project default. A legacy record without a theme retains its original unthemed body format; explicitly selecting a built-in theme migrates it. Previews created by older clients must be regenerated.
 
-The same sanitized body, trusted scoped CSS and article container form the local preview and encrypted online payload. Only the local HTML document shell differs. Themes use local system fonts, with no downloaded fonts, images or external CSS. Long code and wide tables scroll within their own areas. Custom CSS, syntax highlighting and Mermaid are not supported. HTML/Markdown read output remains sanitized and does not reproduce theme CSS.
+The same sanitized body, trusted scoped CSS and article container form the local preview and encrypted online payload. Only the local HTML document shell differs. These are adapted article styles: they do not install, call or integrate with the GitHub, Typora or Obsidian apps, and they do not add syntax support. Themes use local system fonts, with no downloaded fonts, images or external CSS. The `github` style is derived from a pinned `github-markdown-css` source under the MIT license recorded in `THIRD_PARTY_NOTICES.md`; the Typora- and Obsidian-named styles are independent visual adaptations. Long code and wide tables scroll within their own areas. Custom CSS, syntax highlighting and Mermaid are not supported. HTML/Markdown read output remains sanitized and does not reproduce theme CSS.
 
 See `examples/preview-reading.request.json`, `examples/preview-update.request.json`, and `examples/configure-theme.request.json`. Automated mock checks and local screenshots do not establish compatibility with a live service; see `docs/THEME_ACCEPTANCE.md` for the current verification boundary.
 

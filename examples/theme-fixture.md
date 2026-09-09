@@ -1,15 +1,16 @@
 # Share Note · 样式验收
 
-同一份内容，四种阅读方式。This bilingual article checks readable typography, spacing, links, tables and code on desktop and narrow screens.
+同一份内容，多种阅读方式。This bilingual article checks readable typography, spacing, links, tables and code on desktop and narrow screens.
 
 ## 项目进展 / Project notes
 
 这是中文段落，用来检查系统字体、自动换行和行距。**重要信息**与*补充说明*都应保持清晰；访问 [示例链接](https://example.com/docs) 查看链接样式。Inline `contentHash` should remain legible.
 
-- 简洁：日常分享与团队沟通。
-- 技术：代码、接口、表格与排查记录。
-- 阅读：长文与知识整理。
-- 深色：正文阅读区域的深色外观。
+- 日常分享与团队沟通。
+- 代码、接口、表格与排查记录。
+  - 嵌套列表 / Nested list：补充技术细节。
+  - **关键结论**与普通正文保持一致的字体。
+- 长文与知识整理，包含 ~~已删除的描述~~。
 
 ### 验收顺序
 
@@ -19,6 +20,18 @@
 
 > 主题与正文一起加密，预览与发布使用相同片段。
 > This quote should retain a clear boundary and comfortable contrast.
+
+#### 四级标题 / Heading four
+
+检查较小标题与正文之间的间距。
+
+##### 五级标题 / Heading five
+
+A short paragraph beneath the fifth-level heading.
+
+###### 六级标题 / Heading six
+
+第六级标题仍应清晰可辨。
 
 ## 宽表格 / Wide table
 

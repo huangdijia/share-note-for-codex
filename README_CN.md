@@ -180,17 +180,40 @@ node /absolute/path/to/share-note.mjs configure-project --request /absolute/path
 node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/request.json
 ```
 
-支持的操作包括 `setup-codex-browser`、`setup-codex-browser-complete`、`setup`、`setup-browser`、`setup-browser-start`、`setup-browser-complete`、`doctor`、`configure-project`、`preview`、`publish`、`read`、`update`、`list` 和 `delete`。请求文件包含路径、记录 ID、哈希、会话 ID、服务源站和明确的写入授权，不包含机密、浏览器返回的密钥或笔记正文。
+支持的操作包括 `setup-codex-browser`、`setup-codex-browser-complete`、`setup`、`setup-browser`、`setup-browser-start`、`setup-browser-complete`、`doctor`、`configure-project`、`themes`、`preview`、`publish`、`read`、`update`、`list` 和 `delete`。请求文件包含路径、记录 ID、哈希、会话 ID、服务源站和明确的写入授权，不包含机密、浏览器返回的密钥或笔记正文。
 
 无需设置主密码环境变量。旧版设置流程和 `doctor` 仍以配置档案为作用域；`setup-browser` 还会绑定指定项目。所有文档操作（`preview`、`publish`、`read`、`update`、`list` 和 `delete`）都要求提供绝对路径 `projectRoot`，配置档案从该项目的清单中加载。这些操作会拒绝旧版顶层字段 `profile` 和 `workspaceRoot`，且源文件路径必须相对于 `projectRoot`。
 
 预览会返回解析后的配置档案、API/Web 源站和 `projectBindingHash`。发布和更新授权必须回传该配置档案、绑定哈希及准确的内容哈希。如果预览后项目目标发生变化，授权便会失效。
 
-通过 Codex 新建分享时，Agent 会在生成预览前让你选择简洁（`simple`）、技术（`technical`）、阅读（`reading`）或深色（`dark`）样式，并推荐项目默认样式（未配置时为 `simple`）。优先使用 Codex 交互式提问工具，不可用时通过对话询问，等待选择后再继续。直接说“用阅读样式分享”或“使用默认样式”可以跳过询问。本次选择不会修改项目默认样式，也不代表授权上传；可另行说“项目默认设为技术样式”保存默认值。直接调用 CLI 或仅请求预览时仍可使用默认样式；更新已有分享时，除非明确要求更换，否则保留原样式。
+通过 Codex 新建分享时，Agent 会在生成预览前让你从内置样式中选择，并推荐项目默认样式（未配置时为 `simple`）。优先使用 Codex 交互式提问工具，不可用时通过对话询问，等待选择后再继续。直接说“用阅读样式分享”或“使用默认样式”可以跳过询问。本次选择不会修改项目默认样式，也不代表授权上传；可另行说“项目默认设为技术样式”保存默认值。直接调用 CLI 或仅请求预览时仍可使用默认样式；更新已有分享时，除非明确要求更换，否则保留原样式。
 
 发布和更新始终需要新的预览，以及与准确哈希绑定的授权。加密发布是唯一的写入模式。客户端会在首次创建请求前保存项目笔记密钥和待处理操作，不会盲目重试结果不明确的写入，并报告以下状态之一：`verified`、`submitted_unverified`、`unknown`、`failed`、`blocked` 或 `already_absent`。
 
 `list` 的作用域为 `scope: "project"`，不代表列出远程账户的全部内容。删除操作会保留本地源文件、项目审计记录和项目密钥。包含图片或其他用户附件时会阻止发布，因为 Share Note 的正文加密不覆盖这些内容。
+
+## 文章样式
+
+运行 `node /absolute/path/to/share-note.mjs themes`，无需项目或凭据即可列出内置样式：
+
+| ID | 名称 | 用途 |
+| --- | --- | --- |
+| `simple` | 简洁 | 系统默认；白底、系统无衬线字体和蓝色链接 |
+| `technical` | 技术 | 更宽正文，并强化代码块和表格 |
+| `reading` | 阅读 | 暖白背景、系统衬线字体、窄栏宽和宽松行距 |
+| `dark` | 深色 | 深色正文阅读区域和浅色文字；服务外层界面不变 |
+| `github` | GitHub | 适合技术文档的 GitHub 浅色 Markdown 排版 |
+| `typora-github` | Typora GitHub | 白底、宽松留白和标题分隔线 |
+| `typora-newsprint` | Typora Newsprint | 暖纸色、衬线字体和报刊排版 |
+| `typora-night` | Typora Night | 蓝灰正文区域和柔和浅色文字 |
+| `obsidian` | Obsidian | 紧凑浅色阅读栏和紫色强调 |
+| `obsidian-dark` | Obsidian 深色 | 深灰阅读栏和紫色强调 |
+
+通过 `configure-project` 设置 `"defaultTheme": "technical"` 可修改项目默认样式；已配置项目省略 `profile` 即可保留原绑定。该设置只影响新预览，并保留已有记录和操作。没有此字段的项目继续以 `simple` 作为新分享的默认样式。
+
+在 `preview` 请求中加入 `"theme": "reading"` 可单次覆盖默认值。自然语言“Typora”映射为 `typora-github`，“Obsidian”映射为 `obsidian`；深色变体需明确指定 `typora-night` 或 `obsidian-dark`。结果会返回实际 `theme` 和显示名称 `themeName`。更新时，预览请求也必须包含目标 `recordId`；若未明确选择新样式，则保留该记录的样式，不受当前项目默认值影响。旧版无主题记录仍保持原格式，只有明确选择内置样式时才迁移。
+
+本地预览和加密在线正文使用相同的已清理内容、可信作用域 CSS 与文章容器。这些仅是文章视觉适配，不会安装、调用或集成 GitHub、Typora 或 Obsidian 应用，也不会扩展 Markdown 语法。所有样式仅使用本机系统字体，不下载字体、图片或外部 CSS。`github` 基于固定版本的 `github-markdown-css` 源码按 MIT 许可证派生，归属信息见 `THIRD_PARTY_NOTICES.md`；Typora 与 Obsidian 命名样式均为独立视觉适配。自定义 CSS、语法高亮和 Mermaid 仍不受支持，HTML/Markdown 读取结果也不会带回主题 CSS。
 
 ## 运行时数据
 

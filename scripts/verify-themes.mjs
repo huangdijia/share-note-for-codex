@@ -36,7 +36,12 @@ try {
   await run('configure-project', { projectRoot: project, profile: 'visual-fixture' })
   browser = await chromium.launch({ headless: true,
     ...(process.env.CHROME_EXECUTABLE ? { executablePath: process.env.CHROME_EXECUTABLE } : {}) })
-  for (const theme of ['simple', 'technical', 'reading', 'dark']) {
+  const catalog = JSON.parse(execFileSync(process.execPath, [bundle, 'themes'], {
+    cwd: temporary, encoding: 'utf8', env: environment
+  }))
+  if (!catalog.ok || !Array.isArray(catalog.themes) || !catalog.themes.length) throw new Error('Invalid theme catalog')
+  const themes = catalog.themes
+  for (const { id: theme } of themes) {
     const preview = await run('preview', { projectRoot: project, sourcePath: 'article.md', theme })
     if (!preview.publishable || preview.theme !== theme) throw new Error(`Invalid ${theme} preview`)
     const html = await readFile(preview.previewPath, 'utf8')
@@ -65,12 +70,12 @@ try {
       if (remoteRequests.length) throw new Error(`${theme}: requested remote resources`)
       await page.screenshot({ path: path.join(output, `${theme}-${width}.png`), fullPage: true })
       // A generic host-style stress test is local evidence, not a live-service replica.
-      const typography = () => [...document.querySelectorAll('article p, article li, article th, article td, article pre, article code, article h1')].map(el => {
+      const typography = () => [...document.querySelectorAll('article p, article li, article th, article td, article pre, article code, article h1, article h2, article h3, article h4, article h5, article h6, article a, article blockquote')].map(el => {
         const s = getComputedStyle(el)
         return [s.color, s.fontFamily, s.lineHeight, s.backgroundColor]
       })
       const before = await page.evaluate(typography)
-      await page.addStyleTag({ content: 'body{color:#aa0000;font-family:monospace}p,li,th,td,pre,code,h1{color:#aa0000;font-family:monospace;line-height:1;background-color:#ffff00}' })
+      await page.addStyleTag({ content: 'body{color:#aa0000;font-family:monospace}p,li,th,td,pre,code,h1,h2,h3,h4,h5,h6,a,blockquote{color:#aa0000;font-family:monospace;line-height:1;background-color:#ffff00}' })
       const after = await page.evaluate(typography)
       const hostStyleDifferences = before.flatMap((entry, index) => JSON.stringify(entry) === JSON.stringify(after[index]) ? [] : [{ index, before: entry, after: after[index] }])
       if (hostStyleDifferences.length) throw new Error(`${theme}/${width}: host style changed typography ${JSON.stringify(hostStyleDifferences)}`)
@@ -78,9 +83,9 @@ try {
       await page.close()
     }
   }
-  if (new Set(results.map(r => r.contentHash)).size !== 4) throw new Error('Theme hashes are not distinct')
+  if (new Set(results.map(r => r.contentHash)).size !== themes.length) throw new Error('Theme hashes are not distinct')
   await writeFile(path.join(output, 'metrics.json'), JSON.stringify({ scope: 'local bundle only; no live service publication', results }, null, 2) + '\n')
-  await writeFile(path.join(output, 'index.html'), '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Share Note 样式预览</title><h1>Share Note 四种样式</h1><p>同一份中英文验收文章。此处是本地构建预览，尚未完成真实线上验收。</p><ul>' + [['simple','简洁'],['technical','技术'],['reading','阅读'],['dark','深色']].map(([id,name]) => `<li><a href="${id}.html">${name}</a> · <a href="${id}-1440.png">桌面截图</a> · <a href="${id}-375.png">窄屏截图</a></li>`).join('') + '</ul></html>')
+  await writeFile(path.join(output, 'index.html'), '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Share Note 样式预览</title><style>body{font:16px/1.6 system-ui;margin:40px auto;max-width:960px;padding:0 20px;background:#f6f7f9;color:#202124}a{color:#6250b5}li{margin:12px 0}</style><h1>Share Note · ' + themes.length + ' 款文章样式</h1><p>同一份中英文验收文章。本地构建预览，尚未完成真实线上验收。</p><ul>' + themes.map(({id,name}) => `<li><a href="${id}.html">${name}</a> · <a href="${id}-1440.png">桌面截图</a> · <a href="${id}-375.png">窄屏截图</a></li>`).join('') + '</ul></html>')
   console.log(JSON.stringify({ output, screenshots: results.length, checks: 'passed', scope: 'local only' }))
 } finally {
   await browser?.close()

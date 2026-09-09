@@ -1,6 +1,13 @@
+import { githubCss } from './themes/github.js'
+import { typoraGithubCss } from './themes/typora-github.js'
+import { typoraNewsprintCss } from './themes/typora-newsprint.js'
+import { typoraNightCss } from './themes/typora-night.js'
+import { obsidianCss } from './themes/obsidian.js'
+import { obsidianDarkCss } from './themes/obsidian-dark.js'
 import { ShareNoteError } from '../errors.js'
 
-export const THEME_IDS = ['simple', 'technical', 'reading', 'dark'] as const
+export const THEME_IDS = ['simple', 'technical', 'reading', 'dark',
+  'github', 'typora-github', 'typora-newsprint', 'typora-night', 'obsidian', 'obsidian-dark'] as const
 
 export type ThemeId = typeof THEME_IDS[number]
 
@@ -17,7 +24,13 @@ export const THEMES: readonly ThemeDefinition[] = [
   { id: 'simple', name: '简洁', description: '白底、系统无衬线字体和蓝色链接。', systemDefault: true },
   { id: 'technical', name: '技术', description: '更宽正文，并强化代码块和表格。', systemDefault: false },
   { id: 'reading', name: '阅读', description: '暖白背景、系统衬线字体、窄栏宽和宽松行距。', systemDefault: false },
-  { id: 'dark', name: '深色', description: '深色正文阅读区域和浅色文字。', systemDefault: false }
+  { id: 'dark', name: '深色', description: '深色正文阅读区域和浅色文字。', systemDefault: false },
+  { id: 'github', name: 'GitHub', description: 'GitHub 浅色 Markdown 排版，适合技术文档。', systemDefault: false },
+  { id: 'typora-github', name: 'Typora GitHub', description: 'Typora GitHub 适配版：白底、宽松留白和标题分隔线。', systemDefault: false },
+  { id: 'typora-newsprint', name: 'Typora Newsprint', description: 'Typora Newsprint 适配版：暖纸色、衬线字体和报刊排版。', systemDefault: false },
+  { id: 'typora-night', name: 'Typora Night', description: 'Typora Night 适配版：蓝灰背景和柔和文字。', systemDefault: false },
+  { id: 'obsidian', name: 'Obsidian', description: 'Obsidian 默认浅色适配版：紧凑阅读栏和紫色强调。', systemDefault: false },
+  { id: 'obsidian-dark', name: 'Obsidian 深色', description: 'Obsidian 默认深色适配版：深灰正文和紫色强调。', systemDefault: false }
 ]
 
 const THEME_BY_ID = new Map(THEMES.map((theme) => [theme.id, theme]))
@@ -127,6 +140,13 @@ const COMMON_CSS = `
 `
 
 const THEME_CSS: Record<ThemeId, string> = {
+  'github': githubCss,
+  'typora-github': typoraGithubCss,
+  'typora-newsprint': typoraNewsprintCss,
+  'typora-night': typoraNightCss,
+  'obsidian': obsidianCss,
+  'obsidian-dark': obsidianDarkCss,
+
   simple: `
 .share-note-article[data-share-note-theme="simple"] {
   background: #ffffff;
