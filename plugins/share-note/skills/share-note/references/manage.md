@@ -19,3 +19,9 @@ List requires `projectRoot` and accepts optional `query`. It returns `scope: pro
 Delete requires `projectRoot`; authorization must be bound to action `delete` and the exact project `recordId`. The client first verifies that the page matches the record, submits once, then performs bounded credential-free GET checks. `success: true` does not prove deletion. The source file, project audit record, and project note key are always preserved.
 
 Public conversion preserves the existing page URL. Public read-back does not decrypt; `decrypted: false` is expected for that mode, and success still requires matching title and article content. Public page links have no fragment key. Public reads and deletes must work without loading an obsolete note key, while previously stored keys remain untouched.
+
+## Unchanged updates and target selection
+
+A verified update may return `unchanged: true` and `noteWriteSubmitted: false`: the remote baseline and current source/images matched, and the final article, title, theme and mode were unchanged, so no note write was sent. Public mode may still query/reuse and verify hosted images. Do not describe this as a new remote write.
+
+The project list retains history and exposes `active`, `encrypted` and optional `deletedAt`. Filter active candidates by source and requested theme; do not choose an inactive entry or infer the intended target from recency. `unresolvedOperations` exposes pending/unknown operation IDs and attachment counts; a zero `pendingOperations` count alone does not establish that retries are safe.

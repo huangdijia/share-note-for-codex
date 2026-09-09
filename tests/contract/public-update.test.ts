@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { ProjectStore } from '../../src/project.js'
 import { ShareNoteApplication } from '../../src/app.js'
 import { MemorySecretStore } from '../helpers/memory-secret-store.js'
 import { MockShareNoteServer } from '../helpers/mock-share-note-server.js'
@@ -66,10 +67,22 @@ describe('explicit public updates with independently uploaded images', () => {
     expect(server.requestLog.filter((entry) => entry.method === 'GET').every((entry) => !entry.credentialed)).toBe(true)
     const next = await application.preview({ projectRoot: workspace, sourcePath: 'note.md', recordId: published.recordId })
     expect(next).toMatchObject({ encryption: 'public', imageMode: 'upload' })
-    expect((await application.update(request(next))).ok).toBe(true)
+    const createsBeforeNoop = count('/v1/file/create-note')
+    expect(await application.update(request(next))).toMatchObject({ ok: true, unchanged: true, noteWriteSubmitted: false })
+    expect(count('/v1/file/create-note')).toBe(createsBeforeNoop)
     expect(count('/v1/file/upload')).toBe(1)
     const deleted = await application.delete({ projectRoot: workspace, recordId: published.recordId, authorization: { granted: true, action: 'delete', recordId: published.recordId }, verificationDelayMilliseconds: 0 })
     expect(deleted.ok).toBe(true)
+  })
+
+  it('submits a new public body when referenced image bytes change', async () => {
+    expect((await application.update(request(await preview()))).ok).toBe(true)
+    await writeFile(path.join(workspace, 'banner.png'), Buffer.concat([image, Buffer.from('new image bytes')]))
+    const creates = count('/v1/file/create-note')
+    const updated = await application.update(request(await preview()))
+    expect(updated).toMatchObject({ ok: true, unchanged: false, noteWriteSubmitted: true })
+    expect(count('/v1/file/create-note')).toBe(creates + 1)
+    expect(count('/v1/file/upload')).toBe(2)
   })
 
   it.each(['encryption', 'imageMode'] as const)('rejects mismatched %s authorization before network access', async (field) => {
@@ -124,6 +137,9 @@ describe('explicit public updates with independently uploaded images', () => {
     expect(count('/v1/file/upload')).toBe(1)
     const manifest = JSON.parse(await readFile(path.join(workspace, '.openai/share-note.json'), 'utf8'))
     expect(manifest.operations.at(-1).imageUploads[0].status).toBe('unknown')
+    const listed = await application.list({ projectRoot: workspace })
+    expect(listed.pendingOperations).toBe(0)
+    expect(listed.unresolvedOperations).toEqual([{ operationId: result.operationId, recordId: published.recordId, status: 'unknown', verifiedImages: 0, unknownImages: 1 }])
   })
 
   it('rejects foreign asset URLs without fetching them or changing the note', async () => {
@@ -132,6 +148,47 @@ describe('explicit public updates with independently uploaded images', () => {
     expect((await application.update(request(await preview()))).ok).toBe(false)
     expect(count('/v1/file/create-note')).toBe(creates)
     expect(server.requestLog.some((entry) => entry.path.startsWith('/files/'))).toBe(false)
+  })
+
+  it.each(['$&', '$`', "$'", 'TEMPLATE_CONTENT'])('blocks public replacement sequence %s during offline preview', async (sequence) => {
+    await writeFile(path.join(workspace, 'note.md'), `# Public candidate\n\n${sequence}\n\n![Banner](banner.png)\n![Again](banner.png)`)
+    const before = server.requestLog.length
+    const local = await preview()
+    expect(local).toMatchObject({ status: 'blocked', publishable: false, visibility: 'public-content-and-images', images: { mode: 'upload', unique: 1, occurrences: 2, bytes: image.length * 2 } })
+    expect(local.warnings.join(' ')).toContain('server-template replacement')
+    expect(server.requestLog).toHaveLength(before)
+    // An old or edited preview must still fail the write-side defense.
+    const metadataPath = path.join(dataDirectory, 'previews', `${local.previewId}.json`)
+    const metadata = JSON.parse(await readFile(metadataPath, 'utf8'))
+    metadata.publishable = true
+    await writeFile(metadataPath, JSON.stringify(metadata))
+    await expect(application.update(request(local))).rejects.toMatchObject({ code: 'content_blocked' })
+    expect(server.requestLog).toHaveLength(before)
+  })
+
+  it('resolves exact private/public links locally and rejects deleted or absent records', async () => {
+    const manifestPath = path.join(workspace, '.openai/share-note.json')
+    const before = await readFile(manifestPath, 'utf8')
+    const requests = server.requestLog.length
+    expect(await application.link({ projectRoot: workspace, recordId: published.recordId })).toMatchObject({ shareUrl: published.shareUrl, encrypted: true })
+    expect(await readFile(manifestPath, 'utf8')).toBe(before)
+    expect(server.requestLog).toHaveLength(requests)
+    const updated = await application.update(request(await preview()))
+    const publicBefore = await readFile(manifestPath, 'utf8')
+    const publicRequests = server.requestLog.length
+    expect(await application.link({ projectRoot: workspace, recordId: published.recordId })).toMatchObject({ shareUrl: updated.shareUrl, encrypted: false })
+    expect(await readFile(manifestPath, 'utf8')).toBe(publicBefore)
+    expect(server.requestLog).toHaveLength(publicRequests)
+    const project = await ProjectStore.open(workspace, dataDirectory)
+    const record = await project.getRecord(published.recordId)
+    record.status = 'already_absent'
+    await project.saveRecord(record)
+    await expect(application.link({ projectRoot: workspace, recordId: published.recordId })).rejects.toMatchObject({ code: 'not_found' })
+    record.status = 'verified'
+    record.deletedAt = new Date().toISOString()
+    await project.saveRecord(record)
+    await expect(application.link({ projectRoot: workspace, recordId: published.recordId })).rejects.toMatchObject({ code: 'not_found' })
+    expect((await application.list({ projectRoot: workspace })).records[0]).toMatchObject({ active: false, encrypted: false, deletedAt: record.deletedAt })
   })
 
   it('keeps new public publishing unsupported', async () => {

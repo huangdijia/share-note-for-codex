@@ -29313,6 +29313,11 @@ var ConfigStore = class {
 // src/preview.ts
 import path5 from "node:path";
 
+// src/render/public-content.ts
+function publicContentWarnings(html) {
+  return /\$[&`']|TEMPLATE_[A-Z_]+/.test(html) ? ["Public content contains unsupported server-template replacement sequences ($&, $`, $' or TEMPLATE_*); remove them before publishing."] : [];
+}
+
 // src/images.ts
 import path4 from "node:path";
 import { realpath as realpath3 } from "node:fs/promises";
@@ -31345,6 +31350,7 @@ function renderDocument(source, format, fallbackTitle, theme = DEFAULT_THEME, im
 }
 
 // src/preview.ts
+var PREVIEW_SCHEMA_VERSION = 5;
 function inferFormat(filePath, requested) {
   if (requested) return requested;
   return /\.html?$/i.test(filePath) ? "html" : "markdown";
@@ -31379,6 +31385,9 @@ async function createPreview(dataDirectory, profile, request, projectBindingHash
   const format = inferFormat(source.realPath, request.format);
   const assets = await resolveImages(source, format, request.projectRoot, profile);
   const rendered = renderDocument(source.content, format, fallbackTitle, theme, assets.images);
+  const publicWarnings = encryption === "public" ? publicContentWarnings(rendered.bodyHtml) : [];
+  const publishable = rendered.publishable && publicWarnings.length === 0;
+  const imageBytes = assets.dependencies.reduce((sum, dependency) => sum + dependency.bytes * dependency.occurrences, 0);
   const previewId = `preview-${randomUUID2()}`;
   const previewDirectory = path5.join(dataDirectory, "previews");
   await ensurePrivateDirectory(previewDirectory);
@@ -31386,7 +31395,7 @@ async function createPreview(dataDirectory, profile, request, projectBindingHash
   await writeFile(previewPath, rendered.documentHtml, { encoding: "utf8", mode: 384, flag: "wx" });
   await chmod2(previewPath, 384);
   const metadata = {
-    schemaVersion: 5,
+    schemaVersion: PREVIEW_SCHEMA_VERSION,
     previewId,
     profile: profile.name,
     apiOrigin: new URL(profile.apiBaseUrl).origin,
@@ -31405,14 +31414,16 @@ async function createPreview(dataDirectory, profile, request, projectBindingHash
     ...record ? { recordId: record.recordId } : {},
     encryption,
     imageMode,
-    publishable: rendered.publishable,
+    publishable,
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   };
   await writeJsonAtomic(path5.join(previewDirectory, `${previewId}.json`), metadata);
   return {
     ok: true,
     action: "preview",
-    status: rendered.publishable ? "previewed" : "blocked",
+    images: { mode: imageMode, unique: assets.dependencies.length, occurrences: assets.dependencies.reduce((sum, dependency) => sum + dependency.occurrences, 0), bytes: imageBytes },
+    visibility: encryption === "public" ? "public-content-and-images" : "encrypted-content",
+    status: publishable ? "previewed" : "blocked",
     previewId,
     previewPath,
     profile: profile.name,
@@ -31426,14 +31437,15 @@ async function createPreview(dataDirectory, profile, request, projectBindingHash
     theme,
     themeName,
     ...record ? { recordId: record.recordId } : {},
-    bytes: source.bytes + assets.dependencies.reduce((sum, dependency) => sum + dependency.bytes * dependency.occurrences, 0),
+    bytes: source.bytes + imageBytes,
     wordCount: rendered.wordCount,
     resources: rendered.resources,
     encryption,
     imageMode,
-    publishable: rendered.publishable,
+    publishable,
     warnings: [
       ...rendered.warnings,
+      ...publicWarnings,
       ...assets.warnings,
       ...source.symbolicLink ? ["Source is a symbolic link whose resolved target was checked inside the allowed roots."] : []
     ]
@@ -31448,7 +31460,7 @@ async function loadPreview(dataDirectory, previewId) {
   const recordIdValid = value.recordId === void 0 || /^note-[0-9a-f-]{36}$/.test(value.recordId);
   const bodyHtmlValid = typeof value.bodyHtml === "string";
   const themeValid = bodyHtmlValid && (value.theme === null ? value.recordId !== void 0 && value.themeName === "旧版（无主题）" && !hasThemedArticleWrapper(value.bodyHtml) : THEME_IDS.includes(value.theme) && matchesThemedArticle(value.bodyHtml, value.theme) && value.themeName === themeDefinition(value.theme).name);
-  if (value.schemaVersion !== 5 || !(value.encryption === "encrypted" && value.imageMode === "inline" || value.encryption === "public" && value.imageMode === "upload" && Boolean(value.recordId) && Boolean(value.theme)) || !Array.isArray(value.imageDependencies) || !value.imageDependencies.every((dependency) => dependency && typeof dependency.path === "string" && !path5.isAbsolute(dependency.path) && typeof dependency.realPath === "string" && path5.isAbsolute(dependency.realPath) && typeof dependency.hash === "string" && /^[0-9a-f]{64}$/.test(dependency.hash) && Number.isSafeInteger(dependency.bytes) && dependency.bytes > 0 && Number.isSafeInteger(dependency.occurrences) && dependency.occurrences > 0) || value.previewId !== previewId || typeof value.projectRoot !== "string" || typeof value.projectBindingHash !== "string" || typeof value.bodyHtml !== "string" || typeof value.contentHash !== "string" || !/^[0-9a-f]{64}$/.test(value.contentHash) || createHash4("sha256").update(value.bodyHtml, "utf8").digest("hex") !== value.contentHash || !themeValid || typeof value.themeName !== "string" || !recordIdValid) throw new Error("Invalid preview metadata");
+  if (value.schemaVersion !== PREVIEW_SCHEMA_VERSION || !(value.encryption === "encrypted" && value.imageMode === "inline" || value.encryption === "public" && value.imageMode === "upload" && Boolean(value.recordId) && Boolean(value.theme)) || !Array.isArray(value.imageDependencies) || !value.imageDependencies.every((dependency) => dependency && typeof dependency.path === "string" && !path5.isAbsolute(dependency.path) && typeof dependency.realPath === "string" && path5.isAbsolute(dependency.realPath) && typeof dependency.hash === "string" && /^[0-9a-f]{64}$/.test(dependency.hash) && Number.isSafeInteger(dependency.bytes) && dependency.bytes > 0 && Number.isSafeInteger(dependency.occurrences) && dependency.occurrences > 0) || value.previewId !== previewId || typeof value.projectRoot !== "string" || typeof value.projectBindingHash !== "string" || typeof value.bodyHtml !== "string" || typeof value.contentHash !== "string" || !/^[0-9a-f]{64}$/.test(value.contentHash) || createHash4("sha256").update(value.bodyHtml, "utf8").digest("hex") !== value.contentHash || !themeValid || typeof value.themeName !== "string" || !recordIdValid) throw new Error("Invalid preview metadata");
   return value;
 }
 
@@ -39523,6 +39535,9 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
     if (preview.profile !== profile.name || preview.projectRoot !== project.projectRoot || preview.projectBindingHash !== projectBindingHash || preview.contentHash !== request.expectedContentHash || preview.recordId !== record.recordId || preview.sourcePath !== record.sourcePath || !preview.publishable || request.authorization.encryption !== preview.encryption || (request.authorization.imageMode ?? "inline") !== preview.imageMode) {
       throw new ShareNoteError("content_blocked", "Update preview is blocked or does not match the request");
     }
+    if (preview.encryption === "public" && publicContentWarnings(preview.bodyHtml).length > 0) {
+      throw new ShareNoteError("content_blocked", "Public content contains unsupported server-template replacement sequences");
+    }
     const source = await readSafeSource(
       preview.sourcePath,
       project.projectRoot,
@@ -39542,9 +39557,6 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
     }
     if (baseline === "changed") {
       throw new ShareNoteError("conflict", "Remote note changed since the last verified local record");
-    }
-    if (preview.encryption === "public" && /\$[&`']|TEMPLATE_[A-Z_]+/.test(preview.bodyHtml)) {
-      throw new ShareNoteError("content_blocked", "Public content contains unsupported server-template replacement sequences");
     }
     const previous = await project.listOperations();
     if (previous.some((item) => item.recordId === record.recordId && (item.status === "unknown" || item.status === "pending") && item.imageUploads?.some((image) => image.status !== "verified"))) {
@@ -39592,6 +39604,29 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
       }
     }
     const finalHash = sha256Hex2(finalHtml);
+    if (finalHash === record.contentHash && preview.title === record.title && preview.encryption === "encrypted" === record.encrypted && preview.theme === (record.theme ?? null)) {
+      operation.status = "verified";
+      operation.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      operation.diagnostic = "Remote baseline matched the requested content and mode; no note write was submitted.";
+      record.sourceHash = preview.sourceHash;
+      record.status = "verified";
+      record.updatedAt = operation.updatedAt;
+      await project.saveRecord(record);
+      await project.writeOperation(operation);
+      return {
+        ok: true,
+        action: "update",
+        status: "verified",
+        recordId: record.recordId,
+        operationId,
+        theme: preview.theme,
+        unchanged: true,
+        noteWriteSubmitted: false,
+        verification: { fetched: true, decrypted: record.encrypted, contentMatched: true },
+        ...request.returnShareUrl === true ? { shareUrl: record.encrypted ? `${record.shareUrl}#${key}` : record.shareUrl } : {},
+        warnings: []
+      };
+    }
     const encrypted = preview.encryption === "encrypted" ? await encryptModern(JSON.stringify({ content: finalHtml, basename: preview.title }), key) : void 0;
     const template = {
       filename: record.remoteFilename,
@@ -39675,6 +39710,8 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
     await project.writeOperation(operation);
     return {
       ok: verified,
+      unchanged: false,
+      noteWriteSubmitted: true,
       action: "update",
       status: operation.status,
       recordId: record.recordId,
@@ -39719,6 +39756,7 @@ async function deleteRecord(dataDirectory, profile, project, secrets, request, f
       await project.writeOperation(operation);
       record.status = "already_absent";
       record.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      record.deletedAt = record.updatedAt;
       await project.saveRecord(record);
       return {
         ok: true,
@@ -39786,7 +39824,8 @@ async function deleteRecord(dataDirectory, profile, project, secrets, request, f
 }
 async function listLocalRecords(project, request) {
   const records = await project.listRecords(request.query);
-  const pendingOperations = (await project.listOperations("pending")).length;
+  const operations = await project.listOperations();
+  const pendingOperations = operations.filter((operation) => operation.status === "pending").length;
   return {
     ok: true,
     action: "list",
@@ -39800,9 +39839,19 @@ async function listLocalRecords(project, request) {
       shareUrl: record.shareUrl,
       status: record.status,
       ...record.theme ? { theme: record.theme } : {},
-      updatedAt: record.updatedAt
+      updatedAt: record.updatedAt,
+      active: !record.deletedAt && record.status !== "already_absent",
+      encrypted: record.encrypted,
+      ...record.deletedAt ? { deletedAt: record.deletedAt } : {}
     })),
     pendingOperations,
+    unresolvedOperations: operations.filter((operation) => operation.status === "unknown" || operation.status === "pending").map((operation) => ({
+      operationId: operation.operationId,
+      recordId: operation.recordId,
+      status: operation.status,
+      verifiedImages: operation.imageUploads?.filter((image) => image.status === "verified").length ?? 0,
+      unknownImages: operation.imageUploads?.filter((image) => image.status !== "verified").length ?? 0
+    })),
     warnings: ["This is the current project registry, not a complete remote account inventory."]
   };
 }
@@ -40658,6 +40707,22 @@ var ShareNoteApplication = class {
       ]
     };
   }
+  capabilities() {
+    return {
+      ok: true,
+      action: "capabilities",
+      status: "verified",
+      protocolProfile: PROTOCOL_PROFILE.id,
+      previewSchemaVersion: PREVIEW_SCHEMA_VERSION,
+      themes: THEME_IDS,
+      modes: [
+        { encryption: "encrypted", imageMode: "inline", actions: ["publish", "update"] },
+        { encryption: "public", imageMode: "upload", actions: ["update"] }
+      ],
+      actions: ["setup", "setup-browser", "setup-browser-start", "setup-browser-complete", "setup-codex-browser", "setup-codex-browser-complete", "doctor", "configure-project", "capabilities", "themes", "preview", "read", "link", "publish", "update", "list", "delete"],
+      warnings: []
+    };
+  }
   themes() {
     return {
       ok: true,
@@ -41032,6 +41097,24 @@ var ShareNoteApplication = class {
     const context = await this.projectContext(request.projectRoot);
     return listLocalRecords(context.store, { ...request, projectRoot: context.store.projectRoot });
   }
+  async link(request) {
+    rejectLegacyProjectFields(request);
+    const context = await this.projectContext(request.projectRoot);
+    const record = await context.store.getRecord(request.recordId);
+    if (record.deletedAt || record.status === "already_absent") {
+      throw new ShareNoteError("not_found", "The project record is marked absent or deleted");
+    }
+    const key = record.encrypted ? await context.store.readNoteKey(record.noteKeyRef) : void 0;
+    return {
+      ok: true,
+      action: "link",
+      status: "verified",
+      recordId: record.recordId,
+      shareUrl: key ? `${record.shareUrl}#${key}` : record.shareUrl,
+      encrypted: record.encrypted,
+      warnings: ["This link comes from the project record; remote availability was not checked."]
+    };
+  }
   async read(request) {
     rejectLegacyProjectFields(request);
     const context = await this.projectContext(request.projectRoot);
@@ -41219,7 +41302,7 @@ function usage() {
 }
 async function requestFromArguments(arguments_) {
   const [action, flag, requestPath, ...rest] = arguments_;
-  if (action === "themes" && arguments_.length === 1) {
+  if ((action === "themes" || action === "capabilities") && arguments_.length === 1) {
     return { action, request: {} };
   }
   if ((action === "setup-browser" || action === "setup-codex-browser") && arguments_.length === 1) {
@@ -41323,11 +41406,17 @@ async function main() {
     case "configure-project":
       result = await application.configureProject(request);
       break;
+    case "capabilities":
+      result = application.capabilities();
+      break;
     case "themes":
       result = application.themes();
       break;
     case "preview":
       result = await application.preview(request);
+      break;
+    case "link":
+      result = await application.link(request);
       break;
     case "read":
       result = await application.read(request);

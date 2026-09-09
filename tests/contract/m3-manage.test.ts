@@ -111,6 +111,27 @@ describe('M3 update, list, delete and local locking', () => {
     })
   }
 
+  it('skips an identical encrypted update while auditing the new source hash', async () => {
+    await writeFile(sourcePath, '# Managed note\n\nVersion one.\n')
+    const preview = await application.preview({ projectRoot: workspace, sourcePath: 'managed.md', recordId: published.recordId })
+    const creates = server.requestLog.filter((entry) => entry.path === PROTOCOL_PROFILE.routes.create).length
+    expect(await application.update(updateRequest(preview))).toMatchObject({ status: 'verified', unchanged: true, noteWriteSubmitted: false })
+    expect(server.requestLog.filter((entry) => entry.path === PROTOCOL_PROFILE.routes.create)).toHaveLength(creates)
+    const project = await ProjectStore.open(workspace, dataDirectory)
+    expect((await project.getRecord(published.recordId)).sourceHash).toBe(preview.sourceHash)
+    expect((await project.listOperations()).at(-1)).toMatchObject({ status: 'verified', diagnostic: expect.stringContaining('no note write') })
+  })
+
+  it('does not skip when the remote encryption mode changed outside the client', async () => {
+    const record = await (await ProjectStore.open(workspace, dataDirectory)).getRecord(published.recordId)
+    const preview = await application.preview({ projectRoot: workspace, sourcePath: 'managed.md', recordId: published.recordId })
+    const metadata = JSON.parse(await readFile(path.join(dataDirectory, 'previews', `${preview.previewId}.json`), 'utf8'))
+    await fetch(server.apiBaseUrl + PROTOCOL_PROFILE.routes.create, { method: 'POST', headers: { ...createAuthHeaders({ uid: server.uid, apiKey: server.apiKey }), 'content-type': 'application/json' }, body: JSON.stringify({ filename: record.remoteFilename, filetype: 'html', template: { encrypted: false, title: record.title, content: metadata.bodyHtml } }) })
+    const creates = server.requestLog.filter((entry) => entry.path === PROTOCOL_PROFILE.routes.create).length
+    await expect(application.update(updateRequest(preview))).rejects.toMatchObject({ code: 'conflict' })
+    expect(server.requestLog.filter((entry) => entry.path === PROTOCOL_PROFILE.routes.create)).toHaveLength(creates)
+  })
+
   it('updates in place, preserves URL and key, and rotates every IV', async () => {
     const baseUrl = published.shareUrl!.split('#')[0]!
     const before = encryptedPayload(await (await fetch(baseUrl)).text())

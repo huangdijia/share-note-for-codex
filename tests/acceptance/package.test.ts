@@ -139,6 +139,16 @@ describe('M4 packaged plugin acceptance', () => {
     expect(await readdir(clean)).toEqual(['share-note.mjs'])
   })
 
+  it('reports offline capabilities from the packaged client without initializing state', async () => {
+    const clean = await mkdtemp(path.join(tmpdir(), 'share-note-capabilities-'))
+    temporaryDirectories.push(clean)
+    const cleanBundle = path.join(clean, 'share-note.mjs')
+    await copyFile(bundle, cleanBundle)
+    const { stdout } = await execute(process.execPath, [cleanBundle, 'capabilities'], { cwd: clean, env: { PATH: process.env.PATH, SHARE_NOTE_DATA_DIR: path.join(clean, 'data') } })
+    expect(JSON.parse(stdout)).toMatchObject({ action: 'capabilities', protocolProfile: 'note-sx-client-1.5.5', previewSchemaVersion: 5, actions: expect.arrayContaining(['link', 'update', 'capabilities']), modes: [{ encryption: 'encrypted', imageMode: 'inline', actions: ['publish', 'update'] }, { encryption: 'public', imageMode: 'upload', actions: ['update'] }] })
+    expect(await readdir(clean)).toEqual(['share-note.mjs'])
+  })
+
   it('uses private plaintext secret files from the precompiled bundle', async () => {
     const clean = await mkdtemp(path.join(tmpdir(), 'share-note-clean-plaintext-store-'))
     temporaryDirectories.push(clean)

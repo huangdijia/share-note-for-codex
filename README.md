@@ -182,9 +182,9 @@ Request-file invocations have this shape (`setup-browser` also supports the no-r
 node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/request.json
 ```
 
-Supported actions are `setup-codex-browser`, `setup-codex-browser-complete`, `setup`, `setup-browser`, `setup-browser-start`, `setup-browser-complete`, `doctor`, `configure-project`, `themes`, `preview`, `publish`, `read`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, session IDs, service origins, and explicit write authorization—not secrets, browser-returned keys, or note bodies.
+Supported actions are `setup-codex-browser`, `setup-codex-browser-complete`, `setup`, `setup-browser`, `setup-browser-start`, `setup-browser-complete`, `doctor`, `configure-project`, `capabilities`, `themes`, `preview`, `publish`, `read`, `link`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, session IDs, service origins, and explicit write authorization—not secrets, browser-returned keys, or note bodies.
 
-No master-password environment variable is required. Legacy setup and doctor remain profile-scoped; `setup-browser` also binds the requested project. Every document action (`preview`, `publish`, `read`, `update`, `list`, and `delete`) requires an absolute `projectRoot`; the profile is loaded from that project's manifest. These actions reject the legacy top-level `profile` and `workspaceRoot` fields, and source paths must be relative to `projectRoot`.
+No master-password environment variable is required. Legacy setup and doctor remain profile-scoped; `setup-browser` also binds the requested project. Every document action (`preview`, `publish`, `read`, `link`, `update`, `list`, and `delete`) requires an absolute `projectRoot`; the profile is loaded from that project's manifest. These actions reject the legacy top-level `profile` and `workspaceRoot` fields, and source paths must be relative to `projectRoot`.
 
 Preview returns the resolved profile, API/Web origins, and `projectBindingHash`. Publish and update authorization must echo that profile and binding hash together with the exact content hash. This invalidates authorization if the project target changes after preview.
 
@@ -193,6 +193,12 @@ Publishing and updating always require a fresh preview and exact hash-bound auth
 `list` has `scope: "project"` and never claims to enumerate the remote account. Delete keeps the local source, project audit record, and project key. Local PNG, JPEG, GIF and WebP images referenced with Markdown image syntax are embedded as data URIs inside encrypted page bodies by default. For explicitly authorized public updates, they are uploaded separately and referenced by their returned URLs. Image paths are resolved relative to the source document and must stay inside the project and configured allowed roots, including symlink targets. The source and image bytes share the configured source-size limit; repeated image references count once per occurrence. Publication and updates reject images changed after preview. Remote image URLs, SVG, raw HTML image embeds and active embeds remain blocked.
 
 To convert an existing themed share, ask Codex: “Update README_CN.md in public mode with separately uploaded images.” Preview uses `encryption: "public"` and `imageMode: "upload"`; the update authorization must match both fields as well as the preview hash and target record. Public pages and their image URLs are readable without a fragment key. Subsequent updates preserve the record's mode unless explicitly changed. Uploaded images may remain after a note is deleted; the upstream deletion endpoint does not delete image attachments.
+
+Run `node /absolute/path/to/share-note.mjs capabilities` before relying on a new feature. This offline command reports the running client's protocol, preview schema, themes, actions and supported mode combinations; it does not test the server or require credentials. A stale installed bundle can differ from the repository even when their version labels match.
+
+Preview also reports image counts, bytes, mode and visibility. Updates that verify unchanged content return `unchanged: true` and `noteWriteSubmitted: false` instead of rewriting the note. Project lists retain history but expose `active`, `encrypted` and `deletedAt` for target selection, plus `unresolvedOperations` for pending/unknown work. An active local record is not a fresh remote availability check.
+
+To retrieve an existing URL without publication, call `link` with `projectRoot` and the exact `recordId`. Public URLs omit fragments; encrypted URLs include the stored decryption key. This reads only the local registry/key store, does not contact the server, and rejects deleted records. See the [image workflow retrospective](docs/experiments/image-workflow-retrospective.md) for the decisions behind these safeguards.
 
 ## Article styles
 

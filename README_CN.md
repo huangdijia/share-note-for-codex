@@ -182,9 +182,9 @@ node /absolute/path/to/share-note.mjs configure-project --request /absolute/path
 node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/request.json
 ```
 
-支持的操作包括 `setup-codex-browser`、`setup-codex-browser-complete`、`setup`、`setup-browser`、`setup-browser-start`、`setup-browser-complete`、`doctor`、`configure-project`、`themes`、`preview`、`publish`、`read`、`update`、`list` 和 `delete`。请求文件包含路径、记录 ID、哈希、会话 ID、服务源站和明确的写入授权，不包含机密、浏览器返回的密钥或笔记正文。
+支持的操作包括 `setup-codex-browser`、`setup-codex-browser-complete`、`setup`、`setup-browser`、`setup-browser-start`、`setup-browser-complete`、`doctor`、`configure-project`、`capabilities`、`themes`、`preview`、`publish`、`read`、`link`、`update`、`list` 和 `delete`。请求文件包含路径、记录 ID、哈希、会话 ID、服务源站和明确的写入授权，不包含机密、浏览器返回的密钥或笔记正文。
 
-无需设置主密码环境变量。旧版设置流程和 `doctor` 仍以配置档案为作用域；`setup-browser` 还会绑定指定项目。所有文档操作（`preview`、`publish`、`read`、`update`、`list` 和 `delete`）都要求提供绝对路径 `projectRoot`，配置档案从该项目的清单中加载。这些操作会拒绝旧版顶层字段 `profile` 和 `workspaceRoot`，且源文件路径必须相对于 `projectRoot`。
+无需设置主密码环境变量。旧版设置流程和 `doctor` 仍以配置档案为作用域；`setup-browser` 还会绑定指定项目。所有文档操作（`preview`、`publish`、`read`、`link`、`update`、`list` 和 `delete`）都要求提供绝对路径 `projectRoot`，配置档案从该项目的清单中加载。这些操作会拒绝旧版顶层字段 `profile` 和 `workspaceRoot`，且源文件路径必须相对于 `projectRoot`。
 
 预览会返回解析后的配置档案、API/Web 源站和 `projectBindingHash`。发布和更新授权必须回传该配置档案、绑定哈希及准确的内容哈希。如果预览后项目目标发生变化，授权便会失效。
 
@@ -195,6 +195,12 @@ node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/reque
 `list` 的作用域为 `scope: "project"`，不代表列出远程账户的全部内容。删除操作会保留本地源文件、项目审计记录和项目密钥。默认将 Markdown 图片语法引用的本地 PNG、JPEG、GIF 和 WebP 图片以内嵌 data URI 的形式放入加密正文；明确授权的公开更新会独立上传这些图片，并将返回的图片 URL 写入正文。图片路径相对于源文档解析，必须位于项目及配置的允许目录内，符号链接目标同样受检查。源文档与图片字节共用配置的源文件大小限制，重复引用同一图片会按出现次数累计。发布和更新前会重新检查图片，预览后图片发生变化时必须重新预览。远程图片 URL、SVG、原始 HTML 图片标签和主动嵌入内容仍会阻止发布。
 
 转换已有主题分享时，可以对 Codex 说：“更新 README_CN.md 并改为公开模式，图片独立上传。”预览使用 `encryption: "public"` 和 `imageMode: "upload"`，更新授权必须与这两个字段、预览哈希及目标记录一致。公开页面和图片 URL 无需片段密钥即可读取。后续更新默认保留该记录的模式。删除笔记后，已上传图片可能继续存在；上游删除接口不删除图片附件。
+
+使用新功能前，可运行 `node /absolute/path/to/share-note.mjs capabilities`。该离线命令报告实际运行客户端的协议、预览 schema、主题、操作及模式组合，不需要凭据，也不检测服务端。即使版本标签相同，已安装的旧 bundle 也可能与仓库代码不同。
+
+预览还会显示图片数量、字节数、处理模式和可见性。更新核验内容未变时，返回 `unchanged: true` 和 `noteWriteSubmitted: false`，不再重复提交正文。项目列表保留历史记录，通过 `active`、`encrypted` 和 `deletedAt` 辅助选择目标，并用 `unresolvedOperations` 展示待处理或结果未知的操作。本地记录活跃不等于刚刚验证过远端可访问。
+
+只需获取已有链接时，使用 `link` 并传入 `projectRoot` 和准确的 `recordId`，无需重新发布。公开链接不带片段，加密链接包含已保存的解密密钥；该操作只读取本地记录和密钥存储，不访问网络，并拒绝已删除记录。相关决策见[图片处理流程复盘](docs/experiments/image-workflow-retrospective.md)。
 
 ## 文章样式
 

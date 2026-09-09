@@ -48,3 +48,7 @@ Publish requires the same `projectRoot`, fresh `previewId`, `expectedContentHash
 Set `returnShareUrl` only when the user wants the resulting link. The client rechecks the project binding and source hash, stores the note key in the ignored project key file and the pending operation in the project manifest first, encrypts with new random IVs, submits once, fetches the returned page without credentials, decrypts it, and compares title and content hash.
 
 Never convert `unknown` into a retry or `submitted_unverified` into success. The complete URL fragment is a decryption capability and must not be copied into logs or ordinary summaries.
+
+## Preview diagnostics
+
+`images` reports the resolved image mode, unique dependency count, occurrence count and byte total (counting repeats). `visibility` distinguishes encrypted contents from public contents and images. Public server-template incompatibilities must return a blocked preview; update keeps its defensive check. Neither capabilities nor preview uploads assets.

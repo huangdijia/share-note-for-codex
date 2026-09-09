@@ -60,3 +60,7 @@ Confirm `share-note@personal` appears in `installed`, with `installed: true` and
 Tell the user to start a new Codex conversation to discover the Skill. They can then say “请帮我绑定 Share Note” or “Help me set up Share Note” to begin the Skill's setup workflow. Installation alone does not authorize account binding or publishing a document.
 
 This guide uses the plugin management commands exposed by the local Codex CLI. For general plugin behavior, see the [official OpenAI plugin documentation](https://developers.openai.com/codex/plugins). Command availability can vary by Codex version; use local `--help` to diagnose a mismatch rather than inventing flags.
+
+## Development refresh and capability checks
+
+An unchanged version label does not prove that an installed cache contains the current checkout bundle. After a requested local development change has been built and tested, refresh the existing matching source with `codex plugin add share-note@personal --json`, then run `node <installedPath>/skills/share-note/scripts/share-note.mjs capabilities` using the returned installation path. Confirm the required modes/actions and installed/enabled state; compare the bundle with the checkout when both are locally available. Do not rebuild or switch sources merely to install a released plugin. If the running package lacks `capabilities`, identify it as an older client rather than guessing that a server feature is unsupported. A local refresh does not publish a Git release.
