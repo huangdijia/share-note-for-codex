@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ShareNoteApplication } from '../../src/app.js'
 import { createAuthHeaders } from '../../src/protocol/auth.js'
 import { PROTOCOL_PROFILE } from '../../src/protocol/profile.js'
-import { MemorySecretStore } from '../../src/secrets/store.js'
+import { MemorySecretStore } from '../helpers/memory-secret-store.js'
 import { ProjectStore } from '../../src/project.js'
 import { MockShareNoteServer } from '../helpers/mock-share-note-server.js'
 

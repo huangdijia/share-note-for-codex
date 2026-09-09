@@ -12,7 +12,7 @@ import { PROTOCOL_PROFILE, type NoteTemplate } from '../../src/protocol/profile.
 import { decodeSharePage } from '../../src/read/page.js'
 import { renderDocument } from '../../src/render/renderer.js'
 import { THEME_IDS, THEMES } from '../../src/render/themes.js'
-import { MemorySecretStore } from '../../src/secrets/store.js'
+import { MemorySecretStore } from '../helpers/memory-secret-store.js'
 import { MockShareNoteServer } from '../helpers/mock-share-note-server.js'
 
 const THEME_FIXTURE = `# 中英文 Theme

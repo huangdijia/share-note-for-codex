@@ -7,7 +7,7 @@ import { ShareNoteApplication } from '../../src/app.js'
 import { encryptModern } from '../../src/crypto/codecs.js'
 import { createAuthHeaders } from '../../src/protocol/auth.js'
 import { PROTOCOL_PROFILE, type NoteTemplate } from '../../src/protocol/profile.js'
-import { MemorySecretStore } from '../../src/secrets/store.js'
+import { MemorySecretStore } from '../helpers/memory-secret-store.js'
 import { MockShareNoteServer } from '../helpers/mock-share-note-server.js'
 
 describe('M1 setup, doctor, preview and read', () => {

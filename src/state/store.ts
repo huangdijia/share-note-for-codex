@@ -1,8 +1,7 @@
 import path from 'node:path'
 import { ShareNoteError } from '../errors.js'
 import type { OperationStatus } from '../result.js'
-import { readJsonFile, writeJsonAtomic } from './atomic.js'
-import { withLocalLock } from './lock.js'
+import { readJsonFile } from './atomic.js'
 import type { ThemeId } from '../render/themes.js'
 
 export interface ShareRecord {
@@ -48,16 +47,7 @@ interface RecordsFile {
   records: ShareRecord[]
 }
 
-function assertRecordId(recordId: string): string {
-  if (!/^note-[0-9a-f-]{36}$/.test(recordId)) throw new ShareNoteError('invalid_request', 'Invalid record ID')
-  return recordId
-}
-
-function assertOperationId(operationId: string): string {
-  if (!/^op-[0-9a-f-]{36}$/.test(operationId)) throw new ShareNoteError('invalid_request', 'Invalid operation ID')
-  return operationId
-}
-
+// Read-only access to the global registry retained for project migration.
 export class StateStore {
   constructor(private readonly dataDirectory: string) {}
 
@@ -80,41 +70,11 @@ export class StateStore {
     return records as RecordsFile
   }
 
-  async saveRecord(record: ShareRecord): Promise<void> {
-    assertRecordId(record.recordId)
-    await withLocalLock(this.dataDirectory, 'records-index', async () => {
-      const file = await this.readRecords()
-      const index = file.records.findIndex((item) => item.recordId === record.recordId)
-      if (index >= 0) file.records[index] = record
-      else file.records.push(record)
-      await writeJsonAtomic(this.recordsPath, file)
-    })
+  async listRecords(profile?: string): Promise<ShareRecord[]> {
+    return (await this.readRecords()).records.filter((record) => !profile || record.profile === profile)
   }
 
-  async getRecord(recordId: string): Promise<ShareRecord> {
-    const record = (await this.readRecords()).records.find((item) => item.recordId === assertRecordId(recordId))
-    if (!record) throw new ShareNoteError('not_found', `Local record ${recordId} was not found`)
-    return record
-  }
-
-  async listRecords(profile?: string, query?: string): Promise<ShareRecord[]> {
-    const normalizedQuery = query?.toLocaleLowerCase()
-    return (await this.readRecords()).records.filter((record) => {
-      if (profile && record.profile !== profile) return false
-      if (!normalizedQuery) return true
-      return `${record.recordId} ${record.title} ${record.sourcePath}`.toLocaleLowerCase().includes(normalizedQuery)
-    })
-  }
-
-  async writeOperation(operation: OperationRecord): Promise<void> {
-    assertOperationId(operation.operationId)
-    await writeJsonAtomic(
-      path.join(this.dataDirectory, 'operations', `${operation.operationId}.json`),
-      operation
-    )
-  }
-
-  async listOperations(status?: OperationRecord['status']): Promise<OperationRecord[]> {
+  async listOperations(): Promise<OperationRecord[]> {
     const directory = path.join(this.dataDirectory, 'operations')
     const { readdir } = await import('node:fs/promises')
     const entries = await readdir(directory).catch((error: unknown) => {
@@ -127,7 +87,7 @@ export class StateStore {
       const value = await readJsonFile(path.join(directory, entry))
       if (!value || typeof value !== 'object') continue
       const operation = value as OperationRecord
-      if (operation.schemaVersion === 1 && (!status || operation.status === status)) {
+      if (operation.schemaVersion === 1) {
         operations.push(operation)
       }
     }

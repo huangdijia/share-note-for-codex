@@ -16,6 +16,22 @@ Share Note 是一款本地 Codex 插件，通过内置 HTTP 客户端预览、�
 
 本插件不包含 MCP 服务器、守护进程或后台同步，不会动态执行 `npm install`、执行任意网页内容或上传用户附件。本地密钥明确采用明文存储；发布时仅支持加密 Share Note 页面正文。
 
+## 用自然语言安装
+
+将下面这句话发给 Codex：
+
+```text
+请从 https://github.com/huangdijia/share-note-for-codex 安装 Share Note 插件。先阅读仓库根目录的 INSTALL.md，按其中流程检查环境、安装并验证结果。
+```
+
+如果已在 Codex 中打开本仓库，也可以说：
+
+```text
+请按照当前仓库的 INSTALL.md 安装 Share Note 插件，使用当前本地仓库作为插件市场，并验证安装结果。
+```
+
+Codex 会根据[安装指南](INSTALL.md)执行插件管理命令；需要本机可用的 Codex CLI、Node.js 20+，从 GitHub 安装还需要 Git 和网络访问。安装使用仓库已提交的打包产物，无需运行 npm。安装完成后开启新对话，再按下方流程绑定 Share Note 账号。
+
 ## 构建与测试
 
 ```bash

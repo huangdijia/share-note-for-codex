@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -20,12 +21,21 @@ async function dataDirectory(): Promise<string> {
   return directory
 }
 
+async function seedLegacyNoteKey(directory: string, key: string): Promise<string> {
+  const reference = `plaintext-file:notes:default:${recordId}`
+  const digest = createHash('sha256').update(reference).digest('hex')
+  const keyDirectory = path.join(directory, 'secrets', 'note-keys')
+  await mkdir(keyDirectory, { recursive: true, mode: 0o700 })
+  await writeFile(path.join(keyDirectory, `${digest}.json`), JSON.stringify({ schemaVersion: 1, key }), { mode: 0o600 })
+  return reference
+}
+
 describe('plaintext file secret store', () => {
-  it('round-trips credentials and note keys in private plaintext files', async () => {
+  it('round-trips credentials in private files and reads existing legacy note keys', async () => {
     const directory = await dataDirectory()
     const store = new PlaintextFileSecretStore(directory)
     const reference = await store.storeCredential('default', { uid: 'user-123', apiKey: 'api-secret-456' })
-    const noteReference = await store.storeNoteKey('default', recordId, 'note-secret-789')
+    const noteReference = await seedLegacyNoteKey(directory, 'note-secret-789')
 
     await expect(store.readCredential(reference)).resolves.toEqual({ uid: 'user-123', apiKey: 'api-secret-456' })
     await expect(store.readNoteKey(noteReference)).resolves.toBe('note-secret-789')
@@ -54,7 +64,7 @@ describe('plaintext file secret store', () => {
     const directory = await dataDirectory()
     const store = new PlaintextFileSecretStore(directory)
     const reference = await store.storeCredential('default', { uid: 'user', apiKey: 'api-key' })
-    const noteReference = await store.storeNoteKey('default', recordId, 'note-key')
+    const noteReference = await seedLegacyNoteKey(directory, 'note-key')
 
     const credentialDirectory = path.join(directory, 'secrets', 'credentials')
     const noteKeyDirectory = path.join(directory, 'secrets', 'note-keys')

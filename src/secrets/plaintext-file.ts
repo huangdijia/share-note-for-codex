@@ -31,14 +31,6 @@ function assertCredentialReference(reference: CredentialReference): void {
   }
 }
 
-function noteKeyReference(profile: string, recordId: string): string {
-  validateProfileName(profile)
-  if (!/^note-[0-9a-f-]{36}$/.test(recordId)) {
-    throw new ShareNoteError('invalid_request', 'Record identifier is invalid')
-  }
-  return `plaintext-file:notes:${profile}:${recordId}`
-}
-
 function assertNoteKeyReference(reference: string): void {
   if (!/^plaintext-file:notes:[a-z0-9][a-z0-9_-]{0,63}:note-[0-9a-f-]{36}$/.test(reference)) {
     throw new ShareNoteError('credential_missing', 'Plaintext note key reference is invalid')
@@ -81,14 +73,7 @@ export class PlaintextFileSecretStore implements SecretStore {
     return { uid: credential.uid, apiKey: credential.apiKey }
   }
 
-  async storeNoteKey(profile: string, recordId: string, key: string): Promise<string> {
-    if (typeof key !== 'string' || !key) throw new ShareNoteError('credential_missing', 'Note key cannot be empty')
-    const reference = noteKeyReference(profile, recordId)
-    const file: PlaintextNoteKeyFile = { schemaVersion: 1, key }
-    await writeJsonAtomic(this.pathFor(reference), file)
-    return reference
-  }
-
+  // Global note keys are read only when importing legacy project records.
   async readNoteKey(reference: string): Promise<string> {
     assertNoteKeyReference(reference)
     const value = await this.readPlaintextFile(reference)

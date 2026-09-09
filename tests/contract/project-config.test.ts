@@ -4,9 +4,18 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ShareNoteApplication } from '../../src/app.js'
 import { ProjectStore, projectNoteKeyReference } from '../../src/project.js'
-import { MemorySecretStore } from '../../src/secrets/store.js'
-import { StateStore, type OperationRecord, type ShareRecord } from '../../src/state/store.js'
+import { MemorySecretStore } from '../helpers/memory-secret-store.js'
+import { type OperationRecord, type ShareRecord } from '../../src/state/store.js'
 import { withLocalLock } from '../../src/state/lock.js'
+
+async function seedLegacyRecord(dataDirectory: string, record: ShareRecord): Promise<void> {
+  await writeFile(path.join(dataDirectory, 'records.json'), JSON.stringify({ schemaVersion: 1, records: [record] }))
+}
+
+async function seedLegacyOperation(dataDirectory: string, operation: OperationRecord): Promise<void> {
+  await mkdir(path.join(dataDirectory, 'operations'), { recursive: true })
+  await writeFile(path.join(dataDirectory, 'operations', `${operation.operationId}.json`), JSON.stringify(operation))
+}
 
 describe('project-scoped Share Note configuration', () => {
   let dataDirectory: string
@@ -268,9 +277,10 @@ describe('project-scoped Share Note configuration', () => {
       createdAt: now,
       updatedAt: now
     }
-    const legacy = new StateStore(dataDirectory)
-    await legacy.saveRecord(record)
-    await legacy.writeOperation(operation)
+    await seedLegacyRecord(dataDirectory, record)
+    await seedLegacyOperation(dataDirectory, operation)
+    const legacyBefore = await readFile(path.join(dataDirectory, 'records.json'), 'utf8')
+    const operationBefore = await readFile(path.join(dataDirectory, 'operations', `${operationId}.json`), 'utf8')
 
     const configured = await application.configureProject({
       projectRoot: project,
@@ -284,7 +294,8 @@ describe('project-scoped Share Note configuration', () => {
       noteKeyRef: projectNoteKeyReference(recordId)
     })
     await expect(store.readNoteKey(projectNoteKeyReference(recordId))).resolves.toBe('legacy-fragment-key')
-    await expect(legacy.getRecord(recordId)).resolves.toMatchObject({ sourcePath })
+    expect(await readFile(path.join(dataDirectory, 'records.json'), 'utf8')).toBe(legacyBefore)
+    expect(await readFile(path.join(dataDirectory, 'operations', `${operationId}.json`), 'utf8')).toBe(operationBefore)
     await expect(application.configureProject({
       projectRoot: project,
       profile: 'first',
@@ -295,7 +306,7 @@ describe('project-scoped Share Note configuration', () => {
 
   it('reports legacy operations that cannot be associated with a project record', async () => {
     const now = new Date().toISOString()
-    await new StateStore(dataDirectory).writeOperation({
+    await seedLegacyOperation(dataDirectory, {
       schemaVersion: 1,
       operationId: 'op-00000000-0000-4000-8000-000000000005',
       action: 'publish',
@@ -324,7 +335,7 @@ describe('project-scoped Share Note configuration', () => {
     const sourcePath = path.join(project, 'missing-key.md')
     await writeFile(sourcePath, '# missing key')
     const now = new Date().toISOString()
-    await new StateStore(dataDirectory).saveRecord({
+    await seedLegacyRecord(dataDirectory, {
       schemaVersion: 1,
       recordId,
       profile: 'first',

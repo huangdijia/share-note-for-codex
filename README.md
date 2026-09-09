@@ -16,6 +16,22 @@ Version 0.1.0 targets Node.js 20+ on Windows, Linux, and macOS. API credentials 
 
 There is no MCP server, daemon, background sync, dynamic `npm install`, arbitrary webpage execution, or user-attachment upload. Local secret storage is intentionally plaintext; encrypted Share Note page bodies remain the only publication mode.
 
+## Install with natural language
+
+Send this prompt to Codex:
+
+```text
+Install the Share Note plugin from https://github.com/huangdijia/share-note-for-codex. Read INSTALL.md at the repository root first, then follow it to check prerequisites, install, and verify the result.
+```
+
+If this repository is already open in Codex, use:
+
+```text
+Install Share Note following this repository's INSTALL.md. Use the current local repository as the plugin marketplace and verify the installation.
+```
+
+Codex follows the [installation guide](INSTALL.md) using plugin management commands. This requires a local Codex CLI and Node.js 20+; GitHub installation also requires Git and network access. Installation uses the committed bundle and does not require npm. After installation, start a new conversation and follow the setup flow below to bind your Share Note account.
+
 ## Build and test
 
 ```bash

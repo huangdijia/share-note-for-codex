@@ -8,7 +8,7 @@ import {
   type BrowserSetupDependencies
 } from '../../src/app.js'
 import { PlaintextFileSecretStore } from '../../src/secrets/plaintext-file.js'
-import { MemorySecretStore } from '../../src/secrets/store.js'
+import { MemorySecretStore } from '../helpers/memory-secret-store.js'
 import { MockShareNoteServer } from '../helpers/mock-share-note-server.js'
 
 async function filesBelow(directory: string): Promise<string[]> {

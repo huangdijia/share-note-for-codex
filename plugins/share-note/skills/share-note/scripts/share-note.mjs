@@ -39156,14 +39156,6 @@ async function listLocalRecords(project, request) {
 
 // src/state/store.ts
 import path6 from "node:path";
-function assertRecordId(recordId) {
-  if (!/^note-[0-9a-f-]{36}$/.test(recordId)) throw new ShareNoteError("invalid_request", "Invalid record ID");
-  return recordId;
-}
-function assertOperationId(operationId) {
-  if (!/^op-[0-9a-f-]{36}$/.test(operationId)) throw new ShareNoteError("invalid_request", "Invalid operation ID");
-  return operationId;
-}
 var StateStore = class {
   constructor(dataDirectory) {
     this.dataDirectory = dataDirectory;
@@ -39186,37 +39178,10 @@ var StateStore = class {
     }
     return records;
   }
-  async saveRecord(record) {
-    assertRecordId(record.recordId);
-    await withLocalLock(this.dataDirectory, "records-index", async () => {
-      const file = await this.readRecords();
-      const index = file.records.findIndex((item) => item.recordId === record.recordId);
-      if (index >= 0) file.records[index] = record;
-      else file.records.push(record);
-      await writeJsonAtomic(this.recordsPath, file);
-    });
+  async listRecords(profile) {
+    return (await this.readRecords()).records.filter((record) => !profile || record.profile === profile);
   }
-  async getRecord(recordId) {
-    const record = (await this.readRecords()).records.find((item) => item.recordId === assertRecordId(recordId));
-    if (!record) throw new ShareNoteError("not_found", `Local record ${recordId} was not found`);
-    return record;
-  }
-  async listRecords(profile, query) {
-    const normalizedQuery = query?.toLocaleLowerCase();
-    return (await this.readRecords()).records.filter((record) => {
-      if (profile && record.profile !== profile) return false;
-      if (!normalizedQuery) return true;
-      return `${record.recordId} ${record.title} ${record.sourcePath}`.toLocaleLowerCase().includes(normalizedQuery);
-    });
-  }
-  async writeOperation(operation) {
-    assertOperationId(operation.operationId);
-    await writeJsonAtomic(
-      path6.join(this.dataDirectory, "operations", `${operation.operationId}.json`),
-      operation
-    );
-  }
-  async listOperations(status) {
+  async listOperations() {
     const directory = path6.join(this.dataDirectory, "operations");
     const { readdir } = await import("node:fs/promises");
     const entries = await readdir(directory).catch((error) => {
@@ -39229,7 +39194,7 @@ var StateStore = class {
       const value = await readJsonFile(path6.join(directory, entry));
       if (!value || typeof value !== "object") continue;
       const operation = value;
-      if (operation.schemaVersion === 1 && (!status || operation.status === status)) {
+      if (operation.schemaVersion === 1) {
         operations.push(operation);
       }
     }
@@ -40531,13 +40496,6 @@ function assertCredentialReference(reference) {
     throw new ShareNoteError("credential_missing", "Plaintext credential reference is invalid");
   }
 }
-function noteKeyReference(profile, recordId) {
-  validateProfileName(profile);
-  if (!/^note-[0-9a-f-]{36}$/.test(recordId)) {
-    throw new ShareNoteError("invalid_request", "Record identifier is invalid");
-  }
-  return `plaintext-file:notes:${profile}:${recordId}`;
-}
 function assertNoteKeyReference(reference) {
   if (!/^plaintext-file:notes:[a-z0-9][a-z0-9_-]{0,63}:note-[0-9a-f-]{36}$/.test(reference)) {
     throw new ShareNoteError("credential_missing", "Plaintext note key reference is invalid");
@@ -40573,13 +40531,7 @@ var PlaintextFileSecretStore = class {
     }
     return { uid: credential.uid, apiKey: credential.apiKey };
   }
-  async storeNoteKey(profile, recordId, key) {
-    if (typeof key !== "string" || !key) throw new ShareNoteError("credential_missing", "Note key cannot be empty");
-    const reference = noteKeyReference(profile, recordId);
-    const file = { schemaVersion: 1, key };
-    await writeJsonAtomic(this.pathFor(reference), file);
-    return reference;
-  }
+  // Global note keys are read only when importing legacy project records.
   async readNoteKey(reference) {
     assertNoteKeyReference(reference);
     const value = await this.readPlaintextFile(reference);
