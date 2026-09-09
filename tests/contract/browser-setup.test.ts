@@ -329,6 +329,47 @@ describe('browser-assisted setup contract', () => {
     await expect(application.doctor({ profile: 'private' })).resolves.toMatchObject({ status: 'healthy' })
   })
 
+  it('keeps the same pending identity after an ambiguous 403 and succeeds when the service recovers', async () => {
+    const secrets = new PlaintextFileSecretStore(dataDirectory)
+    const privateResponseBody = 'private edge rejection detail'
+    let serviceBlocked = true
+    const controlledFetch = vi.fn(async (...arguments_: Parameters<typeof fetch>) => {
+      if (serviceBlocked) return new Response(privateResponseBody, { status: 403 })
+      return fetch(...arguments_)
+    }) as typeof fetch
+    const application = new ShareNoteApplication(dataDirectory, secrets, controlledFetch, environment, dependencies)
+
+    const error = await application.setupBrowser(
+      selfHostedRequest(),
+      async () => server.apiKey,
+      vi.fn()
+    ).catch((caught: unknown) => caught)
+    expect(error).toMatchObject({ code: 'network_error', details: { status: 403 } })
+    expect(JSON.stringify(error)).not.toContain(privateResponseBody)
+    await expectNotConfigured()
+
+    const pendingPath = path.join(dataDirectory, 'pending-setups', 'private.json')
+    const pending = JSON.parse(await readFile(pendingPath, 'utf8')) as { uid: string; bindingHash: string }
+    expect(pending.uid).toBe(server.uid)
+    expect(new URL(opened[0]!.url).searchParams.get('id')).toBe(pending.uid)
+
+    serviceBlocked = false
+    await expect(application.setupBrowser(
+      selfHostedRequest(),
+      async () => server.apiKey,
+      vi.fn()
+    )).resolves.toMatchObject({
+      status: 'configured',
+      authentication: 'accepted',
+      reusedCredential: false,
+      resumed: true
+    })
+    expect(opened).toHaveLength(1)
+    await expect(stat(pendingPath)).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(secrets.readCredential({ type: 'plaintext-file', id: 'credentials:private' }))
+      .resolves.toEqual({ uid: pending.uid, apiKey: server.apiKey })
+  })
+
   it('rejects source changes while a setup is pending', async () => {
     const application = memoryApplication()
     await expect(application.setupBrowser(

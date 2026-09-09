@@ -54,6 +54,10 @@ Start a new Codex conversation after install so the Skill is discovered. The rep
 
 ## First setup
 
+In Codex, you can start with “publish README.md”. The agent checks the current project binding, validates an existing binding with an empty `check-files` request, or guides you through first-time setup. Before browser authorization, it explains the target service, private plaintext key storage, and token visibility in AI-assisted mode; previously approved choices are not asked again. In the in-app browser, you complete the page's human verification while the agent attempts to read the clearly labelled API key and finish validation and binding. If the page cannot be read, use hidden local terminal input.
+
+Successful binding resumes the original publication request with style selection, preview, and publication. You do not need to repeat the request, and the just-completed authentication check is not repeated. Setup-only requests never upload a document. Network errors during credential validation or ambiguous HTTP 403 responses do not establish that the API key is invalid; reuse pending authorization only while it still exists and has not expired. System browser launch failures clear the new session, so prepare again after fixing the launch issue. Rejected, missing, or unreadable saved credentials stop for repair without automatically creating a replacement identity. These checks and continuation are orchestrated by the Codex Skill; direct CLI publication interfaces are unchanged.
+
 Run this command in an interactive terminal from the project you want to bind:
 
 ```bash

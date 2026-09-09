@@ -28936,15 +28936,15 @@ var ShareNoteHttpClient = class {
     if (response.status >= 300 && response.status < 400) {
       throw new ShareNoteError("network_error", "Credentialed API redirect was rejected");
     }
-    if (response.status === 401 || response.status === 403 || response.status === 462) {
+    if (response.status === 401 || response.status === 462) {
       throw new ShareNoteError("authentication_failed", "Share Note rejected the configured credential", {
         status: response.status
       });
     }
-    const text = await limitedText(response, Math.min(this.profile.maxResponseBytes, 1024 * 1024));
     if (!response.ok) {
       throw new ShareNoteError("network_error", "Share Note API returned an error", { status: response.status });
     }
+    const text = await limitedText(response, Math.min(this.profile.maxResponseBytes, 1024 * 1024));
     try {
       return JSON.parse(text);
     } catch (error) {

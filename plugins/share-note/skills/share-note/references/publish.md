@@ -1,5 +1,7 @@
 # Preview and publish
 
+For publication, complete the identity preflight or first-time binding in `setup.md` before style selection and preview. Resume the same requested file/action after binding; do not repeat a successful setup's authentication check. Preview-only requests remain local.
+
 ## Interactive style selection
 
 For a new publication without a user-selected style, ask before creating its preview:

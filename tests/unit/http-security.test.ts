@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ProfileConfig } from '../../src/config.js'
+import { toSafeError } from '../../src/errors.js'
 import { ShareNoteHttpClient } from '../../src/http/client.js'
 import { PROTOCOL_PROFILE } from '../../src/protocol/profile.js'
 
@@ -52,5 +53,38 @@ describe('HTTP origin isolation', () => {
     expect(mockFetch).toHaveBeenCalledOnce()
     const [, options] = mockFetch.mock.calls[0]!
     expect(options?.headers).toEqual({ accept: 'text/html' })
+  })
+})
+
+describe('HTTP authentication status classification', () => {
+  it.each([401, 462])('treats explicit credential rejection status %i as authentication failure', async (status) => {
+    const response = new Response('credential rejection detail', { status })
+    const readBody = vi.spyOn(response, 'arrayBuffer')
+    const client = new ShareNoteHttpClient(
+      profile,
+      { uid: 'uid', apiKey: 'secret' },
+      vi.fn(async () => response) as typeof fetch
+    )
+
+    await expect(client.postJson(PROTOCOL_PROFILE.routes.doctor, { files: [] }))
+      .rejects.toMatchObject({ code: 'authentication_failed', details: { status } })
+    expect(readBody).not.toHaveBeenCalled()
+  })
+
+  it('treats an ambiguous 403 as a network error without reading or exposing its body', async () => {
+    const privateResponseBody = 'private upstream rejection detail'
+    const response = new Response(privateResponseBody, { status: 403 })
+    const readBody = vi.spyOn(response, 'arrayBuffer')
+    const client = new ShareNoteHttpClient(
+      profile,
+      { uid: 'uid', apiKey: 'secret' },
+      vi.fn(async () => response) as typeof fetch
+    )
+
+    const error = await client.postJson(PROTOCOL_PROFILE.routes.doctor, { files: [] })
+      .catch((caught: unknown) => caught)
+    expect(error).toMatchObject({ code: 'network_error', details: { status: 403 } })
+    expect(readBody).not.toHaveBeenCalled()
+    expect(JSON.stringify(toSafeError(error))).not.toContain(privateResponseBody)
   })
 })
