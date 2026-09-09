@@ -1,8 +1,8 @@
-# Share Note for Codex
+# Share Note
 
 > 把 Markdown 变成可分享的加密页面——预览、发布、读取、更新与删除，都在 Codex 里完成。
 
-**Share Note for Codex 0.1.0** 是一款面向 Codex 的本地效率插件。它将 Share Note 的发布与管理流程带进你的工作区：无需切换工具，无需启动常驻服务，也不依赖 Obsidian。
+**Share Note 0.1.0** 是一款面向 Codex 的本地效率插件。它将 Share Note 的发布与管理流程带进你的工作区：无需切换工具，无需启动常驻服务，也不依赖 Obsidian。
 
 ---
 
@@ -36,7 +36,7 @@
 
 ## 轻量、透明、适合放进真实项目
 
-Share Note for Codex 使用随插件提供的独立 HTTP 客户端，不会在运行时安装依赖，也不会启动 MCP 服务、守护进程、后台同步或监听器。插件安装目录保持只读；配置、预览、锁与记录写入用户级数据目录。
+Share Note 使用随插件提供的独立 HTTP 客户端，不会在运行时安装依赖，也不会启动 MCP 服务、守护进程、后台同步或监听器。插件安装目录保持只读；配置、预览、锁与记录写入用户级数据目录。
 
 它不会安装、调用或检查 Obsidian，也不依赖 Vault、URI Handler 或 Obsidian 运行时。
 
@@ -73,4 +73,4 @@ codex plugin add share-note@personal
 
 在 Codex 里完成写作，在 Share Note 上安全分享。流程更短，控制更多，边界更清楚。
 
-**Share Note for Codex — 写完，即可安全分享。**
+**Share Note — 写完，即可安全分享。**

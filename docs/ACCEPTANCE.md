@@ -1,7 +1,7 @@
 # Acceptance report
 
 Date: 2026-09-09
-Target package: Share Note for Codex 0.1.0  
+Target package: Share Note 0.1.0\
 Protocol profile: `note-sx-client-1.5.5`
 
 ## Test environment and meaning

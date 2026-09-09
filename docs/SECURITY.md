@@ -1,6 +1,6 @@
 # Security model
 
-Share Note for Codex is a local client, not a security boundary between processes running as the same operating-system user.
+Share Note is a local client, not a security boundary between processes running as the same operating-system user.
 
 ## Enforced boundaries
 

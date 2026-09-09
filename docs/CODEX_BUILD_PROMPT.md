@@ -1,6 +1,6 @@
 # 可交给 Codex 的开发任务
 
-开发一个名为 Share Note for Codex 的 Codex 插件，插件 ID 为 share-note，首发目标版本 0.1.0。先阅读同目录的 PLUGIN_PLAN.md，并将其作为范围、架构、验收和安全约束。
+开发一个名为 Share Note 的 Codex 插件，插件 ID 为 share-note，首发目标版本 0.1.0。先阅读同目录的 PLUGIN_PLAN.md，并将其作为范围、架构、验收和安全约束。
 
 ## 目标
 
