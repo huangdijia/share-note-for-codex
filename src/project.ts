@@ -15,6 +15,7 @@ import { credentialIdentityReference, type ProfileConfig, validateProfileName } 
 import { ShareNoteError } from './errors.js'
 import type { OperationRecord, ShareRecord } from './state/store.js'
 import { withLocalLock } from './state/lock.js'
+import { THEME_IDS, type ThemeId } from './render/themes.js'
 
 const RECORD_ID_PATTERN = /^note-[0-9a-f-]{36}$/
 const OPERATION_ID_PATTERN = /^op-[0-9a-f-]{36}$/
@@ -36,9 +37,17 @@ function assertOnlyKeys(value: object, allowed: string[], description: string): 
   }
 }
 
+function assertPersistedTheme(value: unknown, fieldName: string): ThemeId {
+  if (typeof value !== 'string' || !THEME_IDS.includes(value as ThemeId)) {
+    throw new ShareNoteError('configuration_missing', `${fieldName} is invalid`)
+  }
+  return value as ThemeId
+}
+
 export interface ProjectManifest {
   schemaVersion: 1
   profile: string
+  defaultTheme?: ThemeId
   records: ShareRecord[]
   operations: OperationRecord[]
 }
@@ -103,6 +112,7 @@ function assertRecord(value: unknown, profile: string): ShareRecord {
     'sourceHash',
     'contentHash',
     'title',
+    'theme',
     'encrypted',
     'status',
     'createdAt',
@@ -133,6 +143,7 @@ function assertRecord(value: unknown, profile: string): ShareRecord {
     throw new ShareNoteError('configuration_missing', 'Project record schema is invalid')
   }
   assertSafeRelativePath(record.sourcePath)
+  if (record.theme !== undefined) assertPersistedTheme(record.theme, 'Project record theme')
   let shareUrl: URL
   let apiOrigin: URL
   let webOrigin: URL
@@ -204,11 +215,14 @@ function assertManifest(value: unknown): ProjectManifest {
     throw new ShareNoteError('configuration_missing', 'Project Share Note configuration is invalid')
   }
   const manifest = value as Partial<ProjectManifest>
-  assertOnlyKeys(manifest, ['schemaVersion', 'profile', 'records', 'operations'], 'Project Share Note configuration')
+  assertOnlyKeys(manifest, ['schemaVersion', 'profile', 'defaultTheme', 'records', 'operations'], 'Project Share Note configuration')
   if (manifest.schemaVersion !== 1 || typeof manifest.profile !== 'string') {
     throw new ShareNoteError('configuration_missing', 'Project Share Note configuration schema is unsupported')
   }
   const profile = validateProfileName(manifest.profile)
+  const defaultTheme = manifest.defaultTheme === undefined
+    ? undefined
+    : assertPersistedTheme(manifest.defaultTheme, 'Project defaultTheme')
   if (!Array.isArray(manifest.records) || !Array.isArray(manifest.operations)) {
     throw new ShareNoteError('configuration_missing', 'Project Share Note records or operations are invalid')
   }
@@ -220,7 +234,7 @@ function assertManifest(value: unknown): ProjectManifest {
   if (new Set(operations.map((operation) => operation.operationId)).size !== operations.length) {
     throw new ShareNoteError('configuration_missing', 'Project Share Note operation IDs are not unique')
   }
-  return { schemaVersion: 1, profile, records, operations }
+  return { schemaVersion: 1, profile, ...(defaultTheme ? { defaultTheme } : {}), records, operations }
 }
 
 function assertKeyFile(value: unknown): ProjectKeyFile {
@@ -355,25 +369,40 @@ export class ProjectStore {
     await writeAtomic(ignorePath, `${contents}${separator}share-note.keys.json\n`, 0o644)
   }
 
-  async configure(profile: string, allowRebind = true): Promise<ProjectManifest> {
+  async configure(profile: string, allowRebind = true, defaultTheme?: ThemeId): Promise<ProjectManifest> {
     const safeProfile = validateProfileName(profile)
     await this.ensureKeyIgnore()
     return withLocalLock(this.dataDirectory, `project:${this.projectRoot}:manifest`, async () => {
       const exists = await assertRegularFile(this.manifestPath, true)
       if (!exists) {
-        const manifest: ProjectManifest = { schemaVersion: 1, profile: safeProfile, records: [], operations: [] }
+        const manifest: ProjectManifest = {
+          schemaVersion: 1,
+          profile: safeProfile,
+          ...(defaultTheme ? { defaultTheme } : {}),
+          records: [],
+          operations: []
+        }
         await writeJson(this.manifestPath, manifest, 0o644)
         return manifest
       }
       const manifest = await this.load()
-      if (manifest.profile === safeProfile) return manifest
+      if (manifest.profile === safeProfile) {
+        if (defaultTheme === undefined || manifest.defaultTheme === defaultTheme) return manifest
+        const updated: ProjectManifest = { ...manifest, defaultTheme }
+        await writeJson(this.manifestPath, updated, 0o644)
+        return updated
+      }
       if (!allowRebind) {
         throw new ShareNoteError('conflict', 'Project is already bound to another profile')
       }
       if (manifest.records.length > 0 || manifest.operations.length > 0) {
         throw new ShareNoteError('conflict', 'Project profile cannot change after records or operations exist')
       }
-      const updated: ProjectManifest = { ...manifest, profile: safeProfile }
+      const updated: ProjectManifest = {
+        ...manifest,
+        profile: safeProfile,
+        ...(defaultTheme === undefined ? {} : { defaultTheme })
+      }
       await writeJson(this.manifestPath, updated, 0o644)
       return updated
     })

@@ -3,6 +3,7 @@ import { ShareNoteError } from '../errors.js'
 import type { OperationStatus } from '../result.js'
 import { readJsonFile, writeJsonAtomic } from './atomic.js'
 import { withLocalLock } from './lock.js'
+import type { ThemeId } from '../render/themes.js'
 
 export interface ShareRecord {
   schemaVersion: 1
@@ -18,6 +19,7 @@ export interface ShareRecord {
   sourceHash: string
   contentHash: string
   title: string
+  theme?: ThemeId
   encrypted: true
   status: OperationStatus
   createdAt: string

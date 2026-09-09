@@ -27,6 +27,12 @@ Generating or previewing content is not publication authorization. `publish`, `u
 
 Project configuration may select only an existing trusted profile. It cannot add a trusted service origin, select a different credential source, or widen that profile's allowed roots. Document actions require the exact configured project root and do not search parent directories.
 
+## Trusted article styles
+
+Source HTML is sanitized with the existing allow-list before trusted built-in CSS and a scoped article container are injected. User style tags, style attributes, scripts and external resources gain no new permissions. The entire fragment is encrypted and hashed. Read-back verifies the raw decrypted fragment, including CSS, before comparing against the expected hash; safe HTML and Markdown output are sanitized separately and omit CSS text. A CSS change cannot be hidden by sanitization during verification.
+
+Loading a saved preview recomputes its body fragment hash before publication or update, rejecting corrupted content before writes. Theme selection is bound into preview metadata and content hashes. Update previews also bind the target record and matching source. Legacy unthemed records retain their original body serialization unless an explicit theme is requested. Old preview metadata is rejected, while old project/record/key formats remain readable.
+
 ## Known limitations
 
 - Anyone or any process with the complete URL fragment can decrypt that note.

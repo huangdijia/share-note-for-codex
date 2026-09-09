@@ -29130,7 +29130,7 @@ var ConfigStore = class {
 
 // src/preview.ts
 import path4 from "node:path";
-import { randomUUID as randomUUID2 } from "node:crypto";
+import { createHash as createHash4, randomUUID as randomUUID2 } from "node:crypto";
 import { chmod as chmod2, writeFile } from "node:fs/promises";
 
 // src/source.ts
@@ -30533,6 +30533,192 @@ function escapeHtml(value) {
   })[character] ?? character);
 }
 
+// src/render/themes.ts
+var THEME_IDS = ["simple", "technical", "reading", "dark"];
+var DEFAULT_THEME = "simple";
+var THEMES = [
+  { id: "simple", name: "简洁", description: "白底、系统无衬线字体和蓝色链接。", systemDefault: true },
+  { id: "technical", name: "技术", description: "更宽正文，并强化代码块和表格。", systemDefault: false },
+  { id: "reading", name: "阅读", description: "暖白背景、系统衬线字体、窄栏宽和宽松行距。", systemDefault: false },
+  { id: "dark", name: "深色", description: "深色正文阅读区域和浅色文字。", systemDefault: false }
+];
+var THEME_BY_ID = new Map(THEMES.map((theme) => [theme.id, theme]));
+function parseTheme(value, fieldName = "theme") {
+  if (typeof value !== "string" || !THEME_BY_ID.has(value)) {
+    throw new ShareNoteError("invalid_request", `${fieldName} must be one of: ${THEME_IDS.join(", ")}`);
+  }
+  return value;
+}
+function themeDefinition(id) {
+  return THEME_BY_ID.get(id);
+}
+var COMMON_CSS = `
+.share-note-article {
+  box-sizing: border-box;
+  display: block;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+  width: 100%;
+  overflow-wrap: break-word;
+  text-rendering: optimizeLegibility;
+}
+.share-note-article *, .share-note-article *::before, .share-note-article *::after { box-sizing: border-box; }
+.share-note-article .share-note-content { min-width: 0; }
+.share-note-article h1, .share-note-article h2, .share-note-article h3,
+.share-note-article h4, .share-note-article h5, .share-note-article h6 {
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-weight: 650;
+  line-height: 1.25;
+  margin: 1.6em 0 .65em;
+}
+.share-note-article h1 { font-size: 2em; margin-top: 0; }
+.share-note-article h2 { font-size: 1.5em; }
+.share-note-article h3 { font-size: 1.25em; }
+.share-note-article h4 { font-size: 1.1em; }
+.share-note-article h5 { font-size: 1em; }
+.share-note-article h6 { font-size: .9em; }
+.share-note-article p, .share-note-article ul, .share-note-article ol,
+.share-note-article blockquote, .share-note-article pre, .share-note-article table { margin: 0 0 1.1em; }
+.share-note-article p, .share-note-article ul, .share-note-article ol,
+.share-note-article li, .share-note-article table, .share-note-article th,
+.share-note-article td, .share-note-article strong, .share-note-article em,
+.share-note-article del, .share-note-article a, .share-note-article blockquote {
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  line-height: inherit;
+}
+.share-note-article ul, .share-note-article ol { padding-left: 1.6em; }
+.share-note-article li + li { margin-top: .3em; }
+.share-note-article a { color: #0969da; text-decoration: underline; text-underline-offset: .15em; }
+.share-note-article a:hover { text-decoration-thickness: 2px; }
+.share-note-article blockquote {
+  border-left: 4px solid #d0d7de;
+  color: #57606a;
+  margin-left: 0;
+  padding: .15em 1em;
+}
+.share-note-article code, .share-note-article pre {
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  line-height: inherit;
+}
+.share-note-article :not(pre) > code {
+  background: rgba(175, 184, 193, .2);
+  border-radius: .3em;
+  font-size: .9em;
+  padding: .15em .35em;
+}
+.share-note-article pre {
+  background: #f6f8fa;
+  border: 1px solid #d8dee4;
+  border-radius: .5rem;
+  line-height: 1.5;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 1rem;
+  white-space: pre;
+}
+.share-note-article pre code { background: transparent; color: inherit; padding: 0; }
+.share-note-article table {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  width: max-content;
+}
+.share-note-article th, .share-note-article td {
+  border: 1px solid #d0d7de;
+  padding: .45rem .65rem;
+  text-align: left;
+  white-space: normal;
+}
+.share-note-article th { background: #f6f8fa; font-weight: 650; }
+.share-note-article hr { border: 0; border-top: 1px solid #d8dee4; margin: 2em 0; }
+@media (max-width: 640px) {
+  .share-note-article { padding: 1.25rem .9rem 2rem; }
+  .share-note-article h1 { font-size: 1.7em; }
+  .share-note-article h2 { font-size: 1.35em; }
+  .share-note-article pre { padding: .8rem; }
+}
+`;
+var THEME_CSS = {
+  simple: `
+.share-note-article[data-share-note-theme="simple"] {
+  background: #ffffff;
+  color: #202124;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+  max-width: 860px;
+}`,
+  technical: `
+.share-note-article[data-share-note-theme="technical"] {
+  background: #ffffff;
+  color: #172033;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15.5px;
+  line-height: 1.6;
+  max-width: 1080px;
+}
+.share-note-article[data-share-note-theme="technical"] pre { background: #0d1117; border-color: #30363d; color: #e6edf3; }
+.share-note-article[data-share-note-theme="technical"] table { font-size: .94em; }
+.share-note-article[data-share-note-theme="technical"] th { background: #eaeef2; }
+.share-note-article[data-share-note-theme="technical"] th,
+.share-note-article[data-share-note-theme="technical"] td { padding: .55rem .75rem; }`,
+  reading: `
+.share-note-article[data-share-note-theme="reading"] {
+  background: #fbf7ef;
+  color: #342e27;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  font-size: 18px;
+  line-height: 1.85;
+  max-width: 740px;
+}
+.share-note-article[data-share-note-theme="reading"] a { color: #74512d; }
+.share-note-article[data-share-note-theme="reading"] blockquote { border-left-color: #b89b75; color: #675848; }
+.share-note-article[data-share-note-theme="reading"] pre,
+.share-note-article[data-share-note-theme="reading"] th { background: #f1eadf; }
+.share-note-article[data-share-note-theme="reading"] th,
+.share-note-article[data-share-note-theme="reading"] td { border-color: #cdbfae; }`,
+  dark: `
+.share-note-article[data-share-note-theme="dark"] {
+  background: #161b22;
+  color: #e6edf3;
+  color-scheme: dark;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  max-width: 900px;
+}
+.share-note-article[data-share-note-theme="dark"] a { color: #58a6ff; }
+.share-note-article[data-share-note-theme="dark"] blockquote { border-left-color: #6e7681; color: #b1bac4; }
+.share-note-article[data-share-note-theme="dark"] :not(pre) > code { background: rgba(110, 118, 129, .4); }
+.share-note-article[data-share-note-theme="dark"] pre,
+.share-note-article[data-share-note-theme="dark"] th { background: #0d1117; border-color: #30363d; }
+.share-note-article[data-share-note-theme="dark"] th,
+.share-note-article[data-share-note-theme="dark"] td { border-color: #30363d; }
+.share-note-article[data-share-note-theme="dark"] hr { border-top-color: #30363d; }`
+};
+function themeCss(theme) {
+  return `${COMMON_CSS.trim()}
+${THEME_CSS[theme].trim()}`;
+}
+function themedArticle(bodyHtml, theme) {
+  return `<article class="share-note-article" data-share-note-theme="${theme}"><style>${themeCss(theme)}</style><div class="share-note-content">${bodyHtml}</div></article>`;
+}
+function matchesThemedArticle(fragment, theme) {
+  const prefix = `<article class="share-note-article" data-share-note-theme="${theme}"><style>${themeCss(theme)}</style><div class="share-note-content">`;
+  return fragment.startsWith(prefix) && fragment.endsWith("</div></article>");
+}
+function hasThemedArticleWrapper(fragment) {
+  return THEME_IDS.some((theme) => fragment.startsWith(
+    `<article class="share-note-article" data-share-note-theme="${theme}">`
+  ));
+}
+
 // src/render/renderer.ts
 var ACTIVE_HTML_PATTERN = /<(?:img|picture|source|video|audio|iframe|object|embed|script|link)\b|\burl\s*\(/gi;
 function resourceDescriptions(raw) {
@@ -30569,9 +30755,9 @@ function previewDocument(title, bodyHtml) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
-  <style>body{font-family:ui-sans-serif,system-ui,sans-serif;line-height:1.65;max-width:860px;margin:2rem auto;padding:0 1.25rem;color:#202124}pre{overflow:auto;padding:1rem;background:#f6f8fa;border-radius:.5rem}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:.4rem .6rem}blockquote{border-left:4px solid #d0d7de;margin-left:0;padding-left:1rem;color:#57606a}</style>
+  <style>html,body{margin:0;min-height:100%}body{background:transparent}</style>
 </head>
-<body><article>${bodyHtml}</article></body>
+<body>${bodyHtml}</body>
 </html>`;
 }
 function markdownToHtml(markdown, resources) {
@@ -30588,7 +30774,7 @@ function markdownToHtml(markdown, resources) {
   });
   return typeof output === "string" ? output : "";
 }
-function renderDocument(source, format, fallbackTitle) {
+function renderDocument(source, format, fallbackTitle, theme = DEFAULT_THEME) {
   const resources = [];
   let rendered;
   if (format === "markdown") {
@@ -30597,14 +30783,15 @@ function renderDocument(source, format, fallbackTitle) {
     resources.push(...resourceDescriptions(source));
     rendered = source;
   }
-  const bodyHtml = sanitizeStaticHtml(rendered);
-  const title = titleFromHtml(bodyHtml, fallbackTitle);
+  const safeHtml = sanitizeStaticHtml(rendered);
+  const title = titleFromHtml(safeHtml, fallbackTitle);
   const sensitive = sensitiveFindings(source);
   const warnings = [
     ...resources.length > 0 ? ["Embedded images or active resources are not uploaded or fetched; publication is blocked."] : [],
     ...sensitive.length > 0 ? [`Potential sensitive material was detected (${sensitive.join(", ")}); publication is blocked pending source cleanup.`] : []
   ];
-  const plainText = sanitizeHtmlToText(bodyHtml);
+  const plainText = sanitizeHtmlToText(safeHtml);
+  const bodyHtml = theme ? themedArticle(safeHtml, theme) : safeHtml;
   return {
     title,
     bodyHtml,
@@ -30613,7 +30800,8 @@ function renderDocument(source, format, fallbackTitle) {
     wordCount: countWords(plainText),
     resources: [...new Set(resources)],
     warnings,
-    publishable: resources.length === 0 && sensitive.length === 0
+    publishable: resources.length === 0 && sensitive.length === 0,
+    theme
   };
 }
 
@@ -30622,15 +30810,29 @@ function inferFormat(filePath, requested) {
   if (requested) return requested;
   return /\.html?$/i.test(filePath) ? "html" : "markdown";
 }
-async function createPreview(dataDirectory, profile, request, projectBindingHash) {
+async function createPreview(dataDirectory, profile, request, projectBindingHash, manifest) {
   const source = await readSafeSource(
     request.sourcePath,
     request.projectRoot,
     profile.allowedSourceRoots,
     profile.maxSourceBytes
   );
+  let record = void 0;
+  if (request.recordId !== void 0) {
+    if (typeof request.recordId !== "string" || !/^note-[0-9a-f-]{36}$/.test(request.recordId)) {
+      throw new ShareNoteError("invalid_request", "Invalid record ID");
+    }
+    record = manifest.records.find((candidate) => candidate.recordId === request.recordId);
+    if (!record) throw new ShareNoteError("not_found", `Project record ${request.recordId} was not found`);
+    if (record.sourcePath !== source.projectRelativePath) {
+      throw new ShareNoteError("content_blocked", "Update preview sourcePath does not match the target record");
+    }
+  }
+  const explicitTheme = request.theme === void 0 ? void 0 : parseTheme(request.theme);
+  const theme = record ? explicitTheme ?? record.theme ?? null : explicitTheme ?? manifest.defaultTheme ?? DEFAULT_THEME;
+  const themeName = theme ? themeDefinition(theme).name : "旧版（无主题）";
   const fallbackTitle = path4.basename(source.realPath, path4.extname(source.realPath));
-  const rendered = renderDocument(source.content, inferFormat(source.realPath, request.format), fallbackTitle);
+  const rendered = renderDocument(source.content, inferFormat(source.realPath, request.format), fallbackTitle, theme);
   const previewId = `preview-${randomUUID2()}`;
   const previewDirectory = path4.join(dataDirectory, "previews");
   await ensurePrivateDirectory(previewDirectory);
@@ -30638,7 +30840,7 @@ async function createPreview(dataDirectory, profile, request, projectBindingHash
   await writeFile(previewPath, rendered.documentHtml, { encoding: "utf8", mode: 384, flag: "wx" });
   await chmod2(previewPath, 384);
   const metadata = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     previewId,
     profile: profile.name,
     apiOrigin: new URL(profile.apiBaseUrl).origin,
@@ -30651,6 +30853,9 @@ async function createPreview(dataDirectory, profile, request, projectBindingHash
     contentHash: rendered.contentHash,
     title: rendered.title,
     bodyHtml: rendered.bodyHtml,
+    theme,
+    themeName,
+    ...record ? { recordId: record.recordId } : {},
     publishable: rendered.publishable,
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   };
@@ -30669,6 +30874,9 @@ async function createPreview(dataDirectory, profile, request, projectBindingHash
     sourceHash: source.sourceHash,
     contentHash: rendered.contentHash,
     title: rendered.title,
+    theme,
+    themeName,
+    ...record ? { recordId: record.recordId } : {},
     bytes: source.bytes,
     wordCount: rendered.wordCount,
     resources: rendered.resources,
@@ -30685,7 +30893,10 @@ async function loadPreview(dataDirectory, previewId) {
     path4.join(dataDirectory, "previews", `${previewId}.json`),
     "utf8"
   ));
-  if (value.schemaVersion !== 2 || value.previewId !== previewId || typeof value.projectRoot !== "string" || typeof value.projectBindingHash !== "string") throw new Error("Invalid preview metadata");
+  const recordIdValid = value.recordId === void 0 || /^note-[0-9a-f-]{36}$/.test(value.recordId);
+  const bodyHtmlValid = typeof value.bodyHtml === "string";
+  const themeValid = bodyHtmlValid && (value.theme === null ? value.recordId !== void 0 && value.themeName === "旧版（无主题）" && !hasThemedArticleWrapper(value.bodyHtml) : THEME_IDS.includes(value.theme) && matchesThemedArticle(value.bodyHtml, value.theme) && value.themeName === themeDefinition(value.theme).name);
+  if (value.schemaVersion !== 3 || value.previewId !== previewId || typeof value.projectRoot !== "string" || typeof value.projectBindingHash !== "string" || typeof value.bodyHtml !== "string" || typeof value.contentHash !== "string" || !/^[0-9a-f]{64}$/.test(value.contentHash) || createHash4("sha256").update(value.bodyHtml, "utf8").digest("hex") !== value.contentHash || !themeValid || typeof value.themeName !== "string" || !recordIdValid) throw new Error("Invalid preview metadata");
   return value;
 }
 
@@ -38386,6 +38597,7 @@ async function decodeSharePage(pageHtml, fragmentKey) {
   const document = parse(pageHtml);
   const encryptedElement = findElement(document, (element) => attribute(element, "id") === "encrypted-data");
   let title;
+  let rawHtml;
   let html;
   let codec;
   if (encryptedElement) {
@@ -38415,17 +38627,20 @@ async function decodeSharePage(pageHtml, fragmentKey) {
       throw new ShareNoteError("protocol_error", "Decrypted Share Note is missing title or content");
     }
     title = fields.basename;
-    html = safeBodyHtml(fields.content);
+    rawHtml = fields.content;
+    html = safeBodyHtml(rawHtml);
   } else {
     const titleElement = findElement(document, (element) => element.tagName === "title");
     const contentElement = findElement(document, (element) => hasClass(element, "markdown-preview-sizer"));
     if (!contentElement) throw new ShareNoteError("protocol_error", "Share page does not contain a supported note payload");
     title = titleElement ? textContent2(titleElement).trim() : "Untitled";
-    html = safeBodyHtml(serialize(contentElement));
+    rawHtml = serialize(contentElement);
+    html = safeBodyHtml(rawHtml);
   }
   const turndown = new import_turndown.default({ codeBlockStyle: "fenced", headingStyle: "atx" });
   return {
     title,
+    rawHtml,
     html,
     markdown: turndown.turndown(html),
     encrypted: Boolean(encryptedElement),
@@ -38434,12 +38649,12 @@ async function decodeSharePage(pageHtml, fragmentKey) {
 }
 
 // src/publish.ts
-import { createHash as createHash4, randomUUID as randomUUID3 } from "node:crypto";
+import { createHash as createHash5, randomUUID as randomUUID3 } from "node:crypto";
 function sha1Hex(value) {
-  return createHash4("sha1").update(value, "utf8").digest("hex");
+  return createHash5("sha1").update(value, "utf8").digest("hex");
 }
 function sha256Hex2(value) {
-  return createHash4("sha256").update(value, "utf8").digest("hex");
+  return createHash5("sha256").update(value, "utf8").digest("hex");
 }
 function validateRemoteUrl(profile, value) {
   let url;
@@ -38468,6 +38683,9 @@ async function publishPreview(dataDirectory, profile, project, projectBindingHas
   const preview = await loadPreview(dataDirectory, request.previewId);
   if (preview.profile !== profile.name || preview.projectRoot !== project.projectRoot || preview.projectBindingHash !== projectBindingHash || preview.contentHash !== request.expectedContentHash) {
     throw new ShareNoteError("content_blocked", "Preview does not match the requested profile or content hash");
+  }
+  if (preview.recordId || !preview.theme) {
+    throw new ShareNoteError("content_blocked", "Publish requires a new-share preview with an explicit built-in theme");
   }
   if (!preview.publishable) {
     throw new ShareNoteError("content_blocked", "Preview contains blocked resources or sensitive content");
@@ -38532,6 +38750,7 @@ async function publishPreview(dataDirectory, profile, project, projectBindingHas
       recordId,
       operationId,
       encrypted: true,
+      theme: preview.theme,
       verification: { fetched: false, decrypted: false, contentMatched: false },
       warnings: ["The service may have accepted the create request. The client did not retry and cannot provide a verified link."]
     };
@@ -38560,6 +38779,7 @@ async function publishPreview(dataDirectory, profile, project, projectBindingHas
     sourceHash: preview.sourceHash,
     contentHash: preview.contentHash,
     title: preview.title,
+    theme: preview.theme,
     encrypted: true,
     status: "submitted_unverified",
     createdAt: now,
@@ -38573,7 +38793,7 @@ async function publishPreview(dataDirectory, profile, project, projectBindingHas
       verification.fetched = true;
       const decoded = await decodeSharePage(page.html, encrypted.key);
       verification.decrypted = true;
-      verification.contentMatched = decoded.title === preview.title && sha256Hex2(decoded.html) === preview.contentHash;
+      verification.contentMatched = decoded.title === preview.title && sha256Hex2(decoded.rawHtml) === preview.contentHash;
     }
   } catch {
     warnings.push("Create was accepted, but read-back could not be completed.");
@@ -38583,7 +38803,7 @@ async function publishPreview(dataDirectory, profile, project, projectBindingHas
   operation.status = record.status;
   operation.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
   if (!verified) {
-    warnings.push("The returned page did not pass title and sanitized-content hash verification.");
+    warnings.push("The returned page did not pass title and complete-fragment hash verification.");
   }
   await project.saveRecord(record);
   await project.writeOperation(operation);
@@ -38594,6 +38814,7 @@ async function publishPreview(dataDirectory, profile, project, projectBindingHas
     recordId,
     operationId,
     encrypted: true,
+    theme: preview.theme,
     verification,
     ...request.returnShareUrl === true ? { shareUrl: fullShareUrl } : {},
     warnings
@@ -38604,11 +38825,11 @@ async function publishPreview(dataDirectory, profile, project, projectBindingHas
 import { randomUUID as randomUUID4 } from "node:crypto";
 
 // src/state/lock.ts
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 import { open as open2, readFile as readFile3, rm as rm2, stat as stat3 } from "node:fs/promises";
 import path5 from "node:path";
 function lockFilename(name) {
-  return createHash5("sha256").update(name, "utf8").digest("hex") + ".lock";
+  return createHash6("sha256").update(name, "utf8").digest("hex") + ".lock";
 }
 async function delay(milliseconds) {
   await new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -38671,7 +38892,7 @@ async function readAndCompare(client, record, key) {
   const page = await client.getPage(record.shareUrl);
   if (page.status === 404 || page.status === 410 || !page.html) return "absent";
   const decoded = await decodeSharePage(page.html, key);
-  return decoded.title === record.title && sha256Hex2(decoded.html) === record.contentHash ? "matched" : "changed";
+  return decoded.title === record.title && sha256Hex2(decoded.rawHtml) === record.contentHash ? "matched" : "changed";
 }
 async function updateRecord(dataDirectory, profile, project, projectBindingHash, secrets, request, fetchImplementation = fetch) {
   validateUpdateAuthorization(request, profile, projectBindingHash);
@@ -38679,7 +38900,7 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
     const record = await project.getRecord(request.recordId);
     assertRecordBinding(record, profile);
     const preview = await loadPreview(dataDirectory, request.previewId);
-    if (preview.profile !== profile.name || preview.projectRoot !== project.projectRoot || preview.projectBindingHash !== projectBindingHash || preview.contentHash !== request.expectedContentHash || !preview.publishable) {
+    if (preview.profile !== profile.name || preview.projectRoot !== project.projectRoot || preview.projectBindingHash !== projectBindingHash || preview.contentHash !== request.expectedContentHash || preview.recordId !== record.recordId || preview.sourcePath !== record.sourcePath || !preview.publishable) {
       throw new ShareNoteError("content_blocked", "Update preview is blocked or does not match the request");
     }
     const source = await readSafeSource(
@@ -38750,6 +38971,7 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
         recordId: record.recordId,
         operationId,
         verification: { fetched: false, decrypted: false, contentMatched: false },
+        theme: preview.theme,
         warnings: ["The update may have been accepted. It was not retried."]
       };
     }
@@ -38768,6 +38990,7 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
         recordId: record.recordId,
         operationId,
         verification: { fetched: false, decrypted: false, contentMatched: false },
+        theme: preview.theme,
         warnings: ["The server returned a different URL; the original record was not reported as successfully updated."]
       };
     }
@@ -38778,7 +39001,7 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
         verification.fetched = true;
         const decoded = await decodeSharePage(page.html, key);
         verification.decrypted = true;
-        verification.contentMatched = decoded.title === preview.title && sha256Hex2(decoded.html) === preview.contentHash;
+        verification.contentMatched = decoded.title === preview.title && sha256Hex2(decoded.rawHtml) === preview.contentHash;
       }
     } catch {
     }
@@ -38792,6 +39015,8 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
       record.sourceHash = preview.sourceHash;
       record.contentHash = preview.contentHash;
       record.title = preview.title;
+      if (preview.theme) record.theme = preview.theme;
+      else delete record.theme;
     }
     await project.saveRecord(record);
     await project.writeOperation(operation);
@@ -38802,6 +39027,7 @@ async function updateRecord(dataDirectory, profile, project, projectBindingHash,
       recordId: record.recordId,
       operationId,
       verification,
+      theme: preview.theme,
       ...request.returnShareUrl === true ? { shareUrl: `${record.shareUrl}#${key}` } : {},
       warnings: verified ? [] : ["Update was submitted but did not pass read-back verification."]
     };
@@ -38920,6 +39146,7 @@ async function listLocalRecords(project, request) {
       sourcePath: record.sourcePath,
       shareUrl: record.shareUrl,
       status: record.status,
+      ...record.theme ? { theme: record.theme } : {},
       updatedAt: record.updatedAt
     })),
     pendingOperations,
@@ -39011,7 +39238,7 @@ var StateStore = class {
 };
 
 // src/project.ts
-import { createHash as createHash6, randomUUID as randomUUID5 } from "node:crypto";
+import { createHash as createHash7, randomUUID as randomUUID5 } from "node:crypto";
 import {
   chmod as chmod3,
   lstat as lstat2,
@@ -39041,6 +39268,12 @@ function assertOnlyKeys(value, allowed, description) {
   if (Object.keys(value).some((key) => !allowedKeys.has(key))) {
     throw new ShareNoteError("configuration_missing", `${description} contains unsupported fields`);
   }
+}
+function assertPersistedTheme(value, fieldName) {
+  if (typeof value !== "string" || !THEME_IDS.includes(value)) {
+    throw new ShareNoteError("configuration_missing", `${fieldName} is invalid`);
+  }
+  return value;
 }
 function inside2(root, target) {
   const relative = path7.relative(root, target);
@@ -39087,6 +39320,7 @@ function assertRecord(value, profile) {
     "sourceHash",
     "contentHash",
     "title",
+    "theme",
     "encrypted",
     "status",
     "createdAt",
@@ -39097,6 +39331,7 @@ function assertRecord(value, profile) {
     throw new ShareNoteError("configuration_missing", "Project record schema is invalid");
   }
   assertSafeRelativePath(record.sourcePath);
+  if (record.theme !== void 0) assertPersistedTheme(record.theme, "Project record theme");
   let shareUrl;
   let apiOrigin;
   let webOrigin;
@@ -39145,11 +39380,12 @@ function assertManifest(value) {
     throw new ShareNoteError("configuration_missing", "Project Share Note configuration is invalid");
   }
   const manifest = value;
-  assertOnlyKeys(manifest, ["schemaVersion", "profile", "records", "operations"], "Project Share Note configuration");
+  assertOnlyKeys(manifest, ["schemaVersion", "profile", "defaultTheme", "records", "operations"], "Project Share Note configuration");
   if (manifest.schemaVersion !== 1 || typeof manifest.profile !== "string") {
     throw new ShareNoteError("configuration_missing", "Project Share Note configuration schema is unsupported");
   }
   const profile = validateProfileName(manifest.profile);
+  const defaultTheme = manifest.defaultTheme === void 0 ? void 0 : assertPersistedTheme(manifest.defaultTheme, "Project defaultTheme");
   if (!Array.isArray(manifest.records) || !Array.isArray(manifest.operations)) {
     throw new ShareNoteError("configuration_missing", "Project Share Note records or operations are invalid");
   }
@@ -39161,7 +39397,7 @@ function assertManifest(value) {
   if (new Set(operations.map((operation) => operation.operationId)).size !== operations.length) {
     throw new ShareNoteError("configuration_missing", "Project Share Note operation IDs are not unique");
   }
-  return { schemaVersion: 1, profile, records, operations };
+  return { schemaVersion: 1, profile, ...defaultTheme ? { defaultTheme } : {}, records, operations };
 }
 function assertKeyFile(value) {
   if (!value || typeof value !== "object") {
@@ -39229,7 +39465,7 @@ async function projectRelativePath(projectRoot, target) {
   return assertSafeRelativePath(relative.split(path7.sep).join("/"));
 }
 function createProjectBindingHash(projectRoot, profile) {
-  return createHash6("sha256").update(JSON.stringify({
+  return createHash7("sha256").update(JSON.stringify({
     schemaVersion: 1,
     projectRoot,
     profile: profile.name,
@@ -39285,25 +39521,40 @@ var ProjectStore = class _ProjectStore {
     await writeAtomic(ignorePath, `${contents}${separator}share-note.keys.json
 `, 420);
   }
-  async configure(profile, allowRebind = true) {
+  async configure(profile, allowRebind = true, defaultTheme) {
     const safeProfile = validateProfileName(profile);
     await this.ensureKeyIgnore();
     return withLocalLock(this.dataDirectory, `project:${this.projectRoot}:manifest`, async () => {
       const exists = await assertRegularFile(this.manifestPath, true);
       if (!exists) {
-        const manifest2 = { schemaVersion: 1, profile: safeProfile, records: [], operations: [] };
+        const manifest2 = {
+          schemaVersion: 1,
+          profile: safeProfile,
+          ...defaultTheme ? { defaultTheme } : {},
+          records: [],
+          operations: []
+        };
         await writeJson(this.manifestPath, manifest2, 420);
         return manifest2;
       }
       const manifest = await this.load();
-      if (manifest.profile === safeProfile) return manifest;
+      if (manifest.profile === safeProfile) {
+        if (defaultTheme === void 0 || manifest.defaultTheme === defaultTheme) return manifest;
+        const updated2 = { ...manifest, defaultTheme };
+        await writeJson(this.manifestPath, updated2, 420);
+        return updated2;
+      }
       if (!allowRebind) {
         throw new ShareNoteError("conflict", "Project is already bound to another profile");
       }
       if (manifest.records.length > 0 || manifest.operations.length > 0) {
         throw new ShareNoteError("conflict", "Project profile cannot change after records or operations exist");
       }
-      const updated = { ...manifest, profile: safeProfile };
+      const updated = {
+        ...manifest,
+        profile: safeProfile,
+        ...defaultTheme === void 0 ? {} : { defaultTheme }
+      };
       await writeJson(this.manifestPath, updated, 420);
       return updated;
     });
@@ -39521,7 +39772,7 @@ async function openInSystemBrowser(value, approvedOrigin, platform = process.pla
 }
 
 // src/state/pending-setup.ts
-import { createHash as createHash7 } from "node:crypto";
+import { createHash as createHash8 } from "node:crypto";
 import { rm as rm4 } from "node:fs/promises";
 import path8 from "node:path";
 var MINIMUM_EXPIRY_SECONDS = 60;
@@ -39544,7 +39795,7 @@ function bindingValue(value) {
   });
 }
 function bindingHash(value) {
-  return createHash7("sha256").update(bindingValue(value), "utf8").digest("hex");
+  return createHash8("sha256").update(bindingValue(value), "utf8").digest("hex");
 }
 function assertPending(value, expectedProfile) {
   if (!value || typeof value !== "object") {
@@ -39713,9 +39964,18 @@ var ShareNoteApplication = class {
     if (request.importLegacyRecords !== void 0 && typeof request.importLegacyRecords !== "boolean") {
       throw new ShareNoteError("invalid_request", "importLegacyRecords must be a boolean");
     }
-    const profile = await this.configs.load(request.profile);
     const project = await ProjectStore.open(request.projectRoot, this.dataDirectory);
-    await project.configure(profile.name);
+    const existing = await project.find();
+    if (request.profile !== void 0 && typeof request.profile !== "string") {
+      throw new ShareNoteError("invalid_request", "profile must be a string");
+    }
+    const profileName = request.profile ?? existing?.profile;
+    if (!profileName) {
+      throw new ShareNoteError("invalid_request", "profile is required when configuring a new project");
+    }
+    const defaultTheme = request.defaultTheme === void 0 ? void 0 : parseTheme(request.defaultTheme, "defaultTheme");
+    const profile = await this.configs.load(profileName);
+    const configured = await project.configure(profile.name, request.profile !== void 0, defaultTheme);
     let matchingRecords = [];
     let allLegacyOperations = [];
     let unassociatedLegacyOperations = 0;
@@ -39756,6 +40016,7 @@ var ShareNoteApplication = class {
       status: "configured",
       projectRoot: project.projectRoot,
       profile: profile.name,
+      defaultTheme: configured.defaultTheme ?? DEFAULT_THEME,
       importedRecords,
       importedOperations,
       migrationAvailable: matchingRecords.length,
@@ -39765,6 +40026,16 @@ var ShareNoteApplication = class {
         "Project note keys are plaintext and must remain excluded from version control.",
         ...unassociatedLegacyOperations > 0 ? ["Some legacy operations have no source record and could not be associated with this project."] : []
       ]
+    };
+  }
+  themes() {
+    return {
+      ok: true,
+      action: "themes",
+      status: "verified",
+      defaultTheme: DEFAULT_THEME,
+      themes: THEMES,
+      warnings: []
     };
   }
   async browserProfile(request) {
@@ -40041,7 +40312,8 @@ var ShareNoteApplication = class {
       this.dataDirectory,
       context.profile,
       { ...request, projectRoot: context.store.projectRoot },
-      context.projectBindingHash
+      context.projectBindingHash,
+      context.manifest
     );
   }
   async publish(request) {
@@ -40198,7 +40470,7 @@ async function readHiddenInput(prompt, input = process.stdin, output = process.s
 }
 
 // src/secrets/plaintext-file.ts
-import { createHash as createHash8 } from "node:crypto";
+import { createHash as createHash9 } from "node:crypto";
 import path10 from "node:path";
 function credentialReference(profile) {
   return { type: "plaintext-file", id: `credentials:${validateProfileName(profile)}` };
@@ -40271,7 +40543,7 @@ var PlaintextFileSecretStore = class {
   }
   pathFor(reference) {
     const category = reference.startsWith("plaintext-file:credentials:") ? "credentials" : "note-keys";
-    const digest = createHash8("sha256").update(reference).digest("hex");
+    const digest = createHash9("sha256").update(reference).digest("hex");
     return path10.join(this.dataDirectory, "secrets", category, `${digest}.json`);
   }
   async readPlaintextFile(reference) {
@@ -40287,6 +40559,9 @@ function usage() {
 }
 async function requestFromArguments(arguments_) {
   const [action, flag, requestPath, ...rest] = arguments_;
+  if (action === "themes" && arguments_.length === 1) {
+    return { action, request: {} };
+  }
   if (action === "setup-browser" && arguments_.length === 1) {
     return { action, request: { profile: "public", service: "public", projectRoot: process.cwd() } };
   }
@@ -40371,6 +40646,9 @@ async function main() {
       break;
     case "configure-project":
       result = await application.configureProject(request);
+      break;
+    case "themes":
+      result = application.themes();
       break;
     case "preview":
       result = await application.preview(request);

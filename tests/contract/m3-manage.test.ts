@@ -66,7 +66,11 @@ describe('M3 update, list, delete and local locking', () => {
 
   async function nextPreview(body = 'Version two. 🚀') {
     await writeFile(sourcePath, `# Managed note\n\n${body}`)
-    return application.preview({ projectRoot: workspace, sourcePath: 'managed.md' })
+    return application.preview({
+      projectRoot: workspace,
+      sourcePath: 'managed.md',
+      recordId: published.recordId
+    })
   }
 
   function updateRequest(preview: Awaited<ReturnType<typeof nextPreview>>) {

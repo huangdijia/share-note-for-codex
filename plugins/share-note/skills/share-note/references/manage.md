@@ -2,7 +2,9 @@
 
 ## Update
 
-Create a fresh preview, then pass `projectRoot`, `recordId`, `previewId`, `expectedContentHash`, and an authorization object bound to action `update`, the preview's profile and `projectBindingHash`, that record ID, exact hash, and `encrypted` mode.
+Create a fresh preview with `projectRoot`, matching `sourcePath` and the target `recordId`, then pass `projectRoot`, `recordId`, `previewId`, `expectedContentHash`, and an authorization object bound to action `update`, the preview's profile and `projectBindingHash`, that record ID, exact hash, and `encrypted` mode.
+
+An update preview without `theme` retains the record theme, not the project default. Old records without theme metadata retain their unthemed body; only an explicit built-in `theme` migrates them. The update must target the exact preview record. Older preview metadata must be regenerated.
 
 The client locks the local record, checks profile/API origin/web origin/identity binding, reads and compares the current remote baseline, preserves the remote filename and key, and generates fresh IVs. If the original is absent, changed, or the server returns another URL, it does not report an in-place update.
 

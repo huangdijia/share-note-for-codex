@@ -11,6 +11,7 @@ import type { SecretStore } from './secrets/store.js'
 import { readSafeSource } from './source.js'
 import { type ProjectStore } from './project.js'
 import type { OperationRecord, ShareRecord } from './state/store.js'
+import type { ThemeId } from './render/themes.js'
 
 export interface PublishAuthorization {
   granted: true
@@ -34,6 +35,7 @@ export interface PublishResult extends BaseResult {
   recordId: string
   operationId: string
   encrypted: true
+  theme: ThemeId
   verification: {
     fetched: boolean
     decrypted: boolean
@@ -100,6 +102,9 @@ export async function publishPreview(
   ) {
     throw new ShareNoteError('content_blocked', 'Preview does not match the requested profile or content hash')
   }
+  if (preview.recordId || !preview.theme) {
+    throw new ShareNoteError('content_blocked', 'Publish requires a new-share preview with an explicit built-in theme')
+  }
   if (!preview.publishable) {
     throw new ShareNoteError('content_blocked', 'Preview contains blocked resources or sensitive content')
   }
@@ -165,6 +170,7 @@ export async function publishPreview(
       recordId,
       operationId,
       encrypted: true,
+      theme: preview.theme,
       verification: { fetched: false, decrypted: false, contentMatched: false },
       warnings: ['The service may have accepted the create request. The client did not retry and cannot provide a verified link.']
     }
@@ -194,6 +200,7 @@ export async function publishPreview(
     sourceHash: preview.sourceHash,
     contentHash: preview.contentHash,
     title: preview.title,
+    theme: preview.theme,
     encrypted: true,
     status: 'submitted_unverified',
     createdAt: now,
@@ -207,7 +214,7 @@ export async function publishPreview(
       verification.fetched = true
       const decoded = await decodeSharePage(page.html, encrypted.key)
       verification.decrypted = true
-      verification.contentMatched = decoded.title === preview.title && sha256Hex(decoded.html) === preview.contentHash
+      verification.contentMatched = decoded.title === preview.title && sha256Hex(decoded.rawHtml) === preview.contentHash
     }
   } catch {
     warnings.push('Create was accepted, but read-back could not be completed.')
@@ -217,7 +224,7 @@ export async function publishPreview(
   operation.status = record.status
   operation.updatedAt = new Date().toISOString()
   if (!verified) {
-    warnings.push('The returned page did not pass title and sanitized-content hash verification.')
+    warnings.push('The returned page did not pass title and complete-fragment hash verification.')
   }
   await project.saveRecord(record)
   await project.writeOperation(operation)
@@ -228,6 +235,7 @@ export async function publishPreview(
     recordId,
     operationId,
     encrypted: true,
+    theme: preview.theme,
     verification,
     ...(request.returnShareUrl === true ? { shareUrl: fullShareUrl } : {}),
     warnings

@@ -24,12 +24,12 @@ Route the user's request to the precompiled client in `scripts/share-note.mjs`. 
 Read only the relevant workflow reference:
 
 - Setup or doctor: `references/setup.md`
-- Preview or publish: `references/publish.md`
+- Themes, project default style, preview or publish: `references/publish.md`
 - Read a URL or record: `references/read.md`
 - Update, list, or delete: `references/manage.md`
 - Any security ambiguity: `references/security.md`
 
-For `publish` and `update`, always create a fresh `preview` first. Show the title, content hash, resource warnings, sensitive-data warnings, target profile and service origins before deciding whether the user's instruction already grants a matching write authorization. Echo the returned `projectBindingHash` in the authorization. If the source, target, project binding, encryption mode, warnings, or preview hash changes, stop and explain the new risk.
+For `publish` and `update`, always create a fresh `preview` first. Show the title, content hash, resource warnings, sensitive-data warnings, target profile and service origins before deciding whether the user's instruction already grants a matching write authorization. Echo the returned `projectBindingHash` in the authorization. If the source, theme, target, project binding, encryption mode, warnings, or preview hash changes, stop and explain the new risk.
 
 An explicit instruction such as “把 docs/report.md 加密发布到已配置的 Share Note” supplies normal publish authorization for that file, configured profile, and encrypted mode after a clean preview; do not ask for the same confirmation twice. Vague requests such as “分享一下” do not authorize choosing or uploading an arbitrary file.
 
@@ -42,3 +42,9 @@ Interpret client results literally:
 - `already_absent`: delete target was already missing; no second delete was sent.
 
 `list` is project-scoped. Say that it is the current project's registry, not all notes in the account. Deleting a share never deletes the local source file, project audit record, or project note key.
+
+## Style requests
+
+Use `themes` to list built-in styles without credentials or a project. Map 简洁/simple, 技术/technical, 阅读/reading and 深色/dark to their exact IDs. “用阅读样式分享” sets `theme: "reading"` on preview; “项目默认设为技术样式” calls `configure-project` with `projectRoot` and `defaultTheme: "technical"`, preserving the existing profile. Do not ask an extra style question for ordinary shares: new shares use the project default or `simple`.
+
+For update previews, always include the target `recordId` and matching source path. Omit `theme` to preserve the record's style, including the legacy unthemed format. Only an explicit style request migrates a legacy article. Show the actual preview theme with its hash; publish/update never select a theme again. Theme changes require a fresh preview. Built-in styles apply only to the article area and allow no custom CSS or remote resources.

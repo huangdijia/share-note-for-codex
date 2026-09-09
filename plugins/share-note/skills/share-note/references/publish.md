@@ -2,9 +2,11 @@
 
 ## Preview
 
-The request contains the exact absolute `projectRoot`, a project-relative `sourcePath`, and optionally `format` (`markdown` or `html`). The client reads the profile from `.openai/share-note.json`, resolves real paths, enforces both project containment and the profile's global allowed roots and size limit, renders deterministically, sanitizes HTML, and writes a local preview under user data.
+The request contains the exact absolute `projectRoot`, a project-relative `sourcePath`, and optionally `format` (`markdown` or `html`) and `theme` (`simple`, `technical`, `reading`, or `dark`). The client reads the profile from `.openai/share-note.json`, resolves real paths, enforces both project containment and the profile's global allowed roots and size limit, renders deterministically, sanitizes HTML, and writes a local preview under user data.
 
-Preview returns the target profile, API/Web origins and `projectBindingHash`. Show those target fields with the content hash and warnings before authorizing a write.
+Omit `theme` for the project default (system fallback: `simple`). `themes` is a read-only, no-request command listing IDs, names, uses and the system default. The client sanitizes user content before adding bundled scoped CSS; it hashes and encrypts the entire styled fragment. Preview adds only the HTML document shell. Never add user CSS or change the sanitizer.
+
+Preview returns the actual theme identifier/name, target profile, API/Web origins and `projectBindingHash`. Show those target fields with the content hash and warnings before authorizing a write.
 
 Preview never contacts Share Note or fetches remote resources. Embedded images, active resources, private keys, and credential-like values return `publishable: false` and `status: blocked`. Do not work around the block by removing warnings from the request.
 

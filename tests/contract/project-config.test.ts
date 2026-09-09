@@ -6,6 +6,7 @@ import { ShareNoteApplication } from '../../src/app.js'
 import { ProjectStore, projectNoteKeyReference } from '../../src/project.js'
 import { MemorySecretStore } from '../../src/secrets/store.js'
 import { StateStore, type OperationRecord, type ShareRecord } from '../../src/state/store.js'
+import { withLocalLock } from '../../src/state/lock.js'
 
 describe('project-scoped Share Note configuration', () => {
   let dataDirectory: string
@@ -91,6 +92,49 @@ describe('project-scoped Share Note configuration', () => {
     })
     await expect(application.configureProject({ projectRoot: project, profile: 'first' }))
       .rejects.toMatchObject({ code: 'conflict' })
+  })
+
+  it('updates a default theme without gaining permission to change the current profile', async () => {
+    await application.configureProject({ projectRoot: project, profile: 'first' })
+    await application.configureProject({ projectRoot: project, profile: 'second' })
+    await expect(application.configureProject({ projectRoot: project, defaultTheme: 'dark' }))
+      .resolves.toMatchObject({ profile: 'second', defaultTheme: 'dark' })
+    await expect((await ProjectStore.open(project, dataDirectory)).configure('first', false, 'reading'))
+      .rejects.toMatchObject({ code: 'conflict' })
+    await expect((await ProjectStore.open(project, dataDirectory)).load())
+      .resolves.toMatchObject({ profile: 'second', defaultTheme: 'dark' })
+  })
+
+  it('fails closed when a theme-only configure races with an explicit rebind', async () => {
+    await application.configureProject({ projectRoot: project, profile: 'first' })
+    const store = await ProjectStore.open(project, dataDirectory)
+    const pending = await withLocalLock(
+      dataDirectory,
+      `project:${store.projectRoot}:manifest`,
+      async () => {
+        const rebind = application.configureProject({ projectRoot: project, profile: 'second' })
+        await new Promise<void>((resolve) => setTimeout(resolve, 10))
+        const themeOnly = application.configureProject({ projectRoot: project, defaultTheme: 'dark' })
+        await new Promise<void>((resolve) => setTimeout(resolve, 60))
+        return { rebind, themeOnly }
+      }
+    )
+    await expect(pending.rebind).resolves.toMatchObject({ profile: 'second' })
+    await expect(pending.themeOnly).rejects.toMatchObject({ code: 'conflict' })
+    await expect(store.load()).resolves.toMatchObject({ profile: 'second' })
+  })
+
+  it('reports malformed persisted themes as project configuration errors', async () => {
+    await mkdir(path.join(project, '.openai'))
+    await writeFile(path.join(project, '.openai', 'share-note.json'), JSON.stringify({
+      schemaVersion: 1,
+      profile: 'first',
+      defaultTheme: 'unknown',
+      records: [],
+      operations: []
+    }))
+    await expect(application.list({ projectRoot: project }))
+      .rejects.toMatchObject({ code: 'configuration_missing' })
   })
 
   it('requires the exact project root and rejects legacy request overrides', async () => {

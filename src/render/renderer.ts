@@ -1,6 +1,7 @@
 import { marked, Renderer, type Token } from 'marked'
 import { createHash } from 'node:crypto'
 import { escapeHtml, sanitizeStaticHtml } from './sanitize.js'
+import { DEFAULT_THEME, themedArticle, type ThemeId } from './themes.js'
 
 export type SourceFormat = 'markdown' | 'html'
 
@@ -13,6 +14,7 @@ export interface RenderedDocument {
   resources: string[]
   warnings: string[]
   publishable: boolean
+  theme: ThemeId | null
 }
 
 const ACTIVE_HTML_PATTERN = /<(?:img|picture|source|video|audio|iframe|object|embed|script|link)\b|\burl\s*\(/gi
@@ -56,9 +58,9 @@ function previewDocument(title: string, bodyHtml: string): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
-  <style>body{font-family:ui-sans-serif,system-ui,sans-serif;line-height:1.65;max-width:860px;margin:2rem auto;padding:0 1.25rem;color:#202124}pre{overflow:auto;padding:1rem;background:#f6f8fa;border-radius:.5rem}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:.4rem .6rem}blockquote{border-left:4px solid #d0d7de;margin-left:0;padding-left:1rem;color:#57606a}</style>
+  <style>html,body{margin:0;min-height:100%}body{background:transparent}</style>
 </head>
-<body><article>${bodyHtml}</article></body>
+<body>${bodyHtml}</body>
 </html>`
 }
 
@@ -80,7 +82,8 @@ function markdownToHtml(markdown: string, resources: string[]): string {
 export function renderDocument(
   source: string,
   format: SourceFormat,
-  fallbackTitle: string
+  fallbackTitle: string,
+  theme: ThemeId | null = DEFAULT_THEME
 ): RenderedDocument {
   const resources: string[] = []
   let rendered: string
@@ -90,8 +93,8 @@ export function renderDocument(
     resources.push(...resourceDescriptions(source))
     rendered = source
   }
-  const bodyHtml = sanitizeStaticHtml(rendered)
-  const title = titleFromHtml(bodyHtml, fallbackTitle)
+  const safeHtml = sanitizeStaticHtml(rendered)
+  const title = titleFromHtml(safeHtml, fallbackTitle)
   const sensitive = sensitiveFindings(source)
   const warnings = [
     ...(resources.length > 0
@@ -101,7 +104,8 @@ export function renderDocument(
       ? [`Potential sensitive material was detected (${sensitive.join(', ')}); publication is blocked pending source cleanup.`]
       : [])
   ]
-  const plainText = sanitizeHtmlToText(bodyHtml)
+  const plainText = sanitizeHtmlToText(safeHtml)
+  const bodyHtml = theme ? themedArticle(safeHtml, theme) : safeHtml
   return {
     title,
     bodyHtml,
@@ -110,6 +114,7 @@ export function renderDocument(
     wordCount: countWords(plainText),
     resources: [...new Set(resources)],
     warnings,
-    publishable: resources.length === 0 && sensitive.length === 0
+    publishable: resources.length === 0 && sensitive.length === 0,
+    theme
   }
 }

@@ -40,6 +40,7 @@ import {
   type PendingBrowserSetup,
   type BrowserSetupService
 } from './state/pending-setup.js'
+import { DEFAULT_THEME, THEMES, parseTheme, type ThemeId } from './render/themes.js'
 
 export interface SetupRequest extends ProfileSetupInput {
   credentialEnvVar: string
@@ -122,7 +123,8 @@ export interface ReadRequest {
 
 export interface ConfigureProjectRequest {
   projectRoot: string
-  profile: string
+  profile?: string
+  defaultTheme?: ThemeId
   importLegacyRecords?: boolean
 }
 
@@ -154,6 +156,7 @@ export class ShareNoteApplication {
   async configureProject(request: ConfigureProjectRequest): Promise<BaseResult & {
     projectRoot: string
     profile: string
+    defaultTheme: ThemeId
     importedRecords: number
     importedOperations: number
     migrationAvailable: number
@@ -162,9 +165,20 @@ export class ShareNoteApplication {
     if (request.importLegacyRecords !== undefined && typeof request.importLegacyRecords !== 'boolean') {
       throw new ShareNoteError('invalid_request', 'importLegacyRecords must be a boolean')
     }
-    const profile = await this.configs.load(request.profile)
     const project = await ProjectStore.open(request.projectRoot, this.dataDirectory)
-    await project.configure(profile.name)
+    const existing = await project.find()
+    if (request.profile !== undefined && typeof request.profile !== 'string') {
+      throw new ShareNoteError('invalid_request', 'profile must be a string')
+    }
+    const profileName = request.profile ?? existing?.profile
+    if (!profileName) {
+      throw new ShareNoteError('invalid_request', 'profile is required when configuring a new project')
+    }
+    const defaultTheme = request.defaultTheme === undefined
+      ? undefined
+      : parseTheme(request.defaultTheme, 'defaultTheme')
+    const profile = await this.configs.load(profileName)
+    const configured = await project.configure(profile.name, request.profile !== undefined, defaultTheme)
 
     let matchingRecords: Awaited<ReturnType<StateStore['listRecords']>> = []
     let allLegacyOperations: Awaited<ReturnType<StateStore['listOperations']>> = []
@@ -209,6 +223,7 @@ export class ShareNoteApplication {
       status: 'configured',
       projectRoot: project.projectRoot,
       profile: profile.name,
+      defaultTheme: configured.defaultTheme ?? DEFAULT_THEME,
       importedRecords,
       importedOperations,
       migrationAvailable: matchingRecords.length,
@@ -220,6 +235,21 @@ export class ShareNoteApplication {
           ? ['Some legacy operations have no source record and could not be associated with this project.']
           : [])
       ]
+    }
+  }
+
+  themes(): BaseResult & {
+    action: 'themes'
+    defaultTheme: ThemeId
+    themes: typeof THEMES
+  } {
+    return {
+      ok: true,
+      action: 'themes',
+      status: 'verified',
+      defaultTheme: DEFAULT_THEME,
+      themes: THEMES,
+      warnings: []
     }
   }
 
@@ -561,7 +591,8 @@ export class ShareNoteApplication {
       this.dataDirectory,
       context.profile,
       { ...request, projectRoot: context.store.projectRoot },
-      context.projectBindingHash
+      context.projectBindingHash,
+      context.manifest
     )
   }
 

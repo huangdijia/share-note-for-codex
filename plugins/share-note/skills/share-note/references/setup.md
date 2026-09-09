@@ -93,3 +93,5 @@ Doctor sends `POST /v1/file/check-files` with an empty file list. It checks conf
 ## Project configuration
 
 After setup, call `configure-project` with an absolute `projectRoot` and an existing `profile`. It creates `.openai/share-note.json` and ensures `.openai/.gitignore` contains `share-note.keys.json`. The project manifest may select a trusted profile but cannot define origins, credential references, or allowed source roots. Use `importLegacyRecords: true` only when the user asks to copy matching legacy records and keys into this project; the originals remain untouched.
+
+For an existing binding, set `defaultTheme` (`simple`, `technical`, `reading`, or `dark`) through `configure-project` and omit `profile` to retain it. This preserves records and operations and changes only new-share defaults; it does not restyle published articles. New projects without a theme use `simple`.

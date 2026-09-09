@@ -40,6 +40,7 @@ function safeBodyHtml(html: string): string {
 
 export interface DecodedPage {
   title: string
+  rawHtml: string
   html: string
   markdown: string
   encrypted: boolean
@@ -53,6 +54,7 @@ export async function decodeSharePage(
   const document = parse(pageHtml)
   const encryptedElement = findElement(document, (element) => attribute(element, 'id') === 'encrypted-data')
   let title: string
+  let rawHtml: string
   let html: string
   let codec: ReturnType<typeof detectReadCodec> | undefined
   if (encryptedElement) {
@@ -82,17 +84,20 @@ export async function decodeSharePage(
       throw new ShareNoteError('protocol_error', 'Decrypted Share Note is missing title or content')
     }
     title = fields.basename
-    html = safeBodyHtml(fields.content)
+    rawHtml = fields.content
+    html = safeBodyHtml(rawHtml)
   } else {
     const titleElement = findElement(document, (element) => element.tagName === 'title')
     const contentElement = findElement(document, (element) => hasClass(element, 'markdown-preview-sizer'))
     if (!contentElement) throw new ShareNoteError('protocol_error', 'Share page does not contain a supported note payload')
     title = titleElement ? textContent(titleElement).trim() : 'Untitled'
-    html = safeBodyHtml(serialize(contentElement as ParentNode))
+    rawHtml = serialize(contentElement as ParentNode)
+    html = safeBodyHtml(rawHtml)
   }
   const turndown = new TurndownService({ codeBlockStyle: 'fenced', headingStyle: 'atx' })
   return {
     title,
+    rawHtml,
     html,
     markdown: turndown.turndown(html),
     encrypted: Boolean(encryptedElement),

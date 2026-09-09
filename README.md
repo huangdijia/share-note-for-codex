@@ -144,7 +144,7 @@ Request-file invocations have this shape (`setup-browser` also supports the no-r
 node /absolute/path/to/share-note.mjs <action> --request /absolute/path/to/request.json
 ```
 
-Supported actions are `setup`, `setup-browser`, `setup-browser-start`, `setup-browser-complete`, `doctor`, `configure-project`, `preview`, `publish`, `read`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, service origins, and explicit write authorization—not secrets, browser-returned keys, or note bodies.
+Supported actions are `setup`, `setup-browser`, `setup-browser-start`, `setup-browser-complete`, `doctor`, `configure-project`, `themes`, `preview`, `publish`, `read`, `update`, `list`, and `delete`. Request files contain paths, record IDs, hashes, service origins, and explicit write authorization—not secrets, browser-returned keys, or note bodies.
 
 No master-password environment variable is required. Legacy setup and doctor remain profile-scoped; `setup-browser` also binds the requested project. Every document action (`preview`, `publish`, `read`, `update`, `list`, and `delete`) requires an absolute `projectRoot`; the profile is loaded from that project's manifest. These actions reject the legacy top-level `profile` and `workspaceRoot` fields, and source paths must be relative to `projectRoot`.
 
@@ -153,6 +153,27 @@ Preview returns the resolved profile, API/Web origins, and `projectBindingHash`.
 Publishing and updating always require a fresh preview and exact hash-bound authorization. Encrypted publication is the only write mode. The client stores the project note key and pending operation before the first create request, never blindly retries ambiguous writes, and reports one of `verified`, `submitted_unverified`, `unknown`, `failed`, `blocked`, or `already_absent`.
 
 `list` has `scope: "project"` and never claims to enumerate the remote account. Delete keeps the local source, project audit record, and project key. Images and other user attachments block publication because Share Note body encryption does not cover them.
+
+## Article styles
+
+Run `node /absolute/path/to/share-note.mjs themes` to list the built-in styles without a project or credentials:
+
+| ID | Name | Purpose |
+| --- | --- | --- |
+| `simple` | 简洁 | System default: white background, system sans-serif and blue links |
+| `technical` | 技术 | Wider article with stronger code and table treatment |
+| `reading` | 阅读 | Warm background, system serif, narrower measure and generous line spacing |
+| `dark` | 深色 | Dark article area with light text; the service's outer interface is unchanged |
+
+Set `"defaultTheme": "technical"` through `configure-project` for a project default. On an already configured project, omit `profile` to preserve its binding. This changes the default for new previews only and preserves records and operations. Existing projects without this field use `simple` for new shares.
+
+Add `"theme": "reading"` to a `preview` request for a one-time override. The result includes `theme` (the actual theme identifier) and `themeName` (display name). A legacy unthemed update preview reports `theme: null`. Publish uses that preview exactly; changing a theme requires a new preview and its new content hash. Normal sharing uses the default without an extra style confirmation.
+
+For updates, include the target `recordId` in the **preview** request as well as the update request. The source must match that project's record. Without an explicit theme, the preview preserves the record's style, regardless of the current project default. A legacy record without a theme retains its original unthemed body format; explicitly selecting a built-in theme migrates it. Previews created by older clients must be regenerated.
+
+The same sanitized body, trusted scoped CSS and article container form the local preview and encrypted online payload. Only the local HTML document shell differs. Themes use local system fonts, with no downloaded fonts, images or external CSS. Long code and wide tables scroll within their own areas. Custom CSS, syntax highlighting and Mermaid are not supported. HTML/Markdown read output remains sanitized and does not reproduce theme CSS.
+
+See `examples/preview-reading.request.json`, `examples/preview-update.request.json`, and `examples/configure-theme.request.json`. Automated mock checks and local screenshots do not establish compatibility with a live service; see `docs/THEME_ACCEPTANCE.md` for the current verification boundary.
 
 ## Runtime data
 

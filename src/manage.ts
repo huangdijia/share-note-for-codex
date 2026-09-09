@@ -18,6 +18,7 @@ import type { ProjectStore } from './project.js'
 import { withLocalLock } from './state/lock.js'
 import type { OperationRecord, ShareRecord } from './state/store.js'
 import { sha1Hex, sha256Hex, validateRemoteUrl } from './publish.js'
+import type { ThemeId } from './render/themes.js'
 
 export interface UpdateRequest {
   projectRoot: string
@@ -106,7 +107,7 @@ async function readAndCompare(
   const page = await client.getPage(record.shareUrl)
   if (page.status === 404 || page.status === 410 || !page.html) return 'absent'
   const decoded = await decodeSharePage(page.html, key)
-  return decoded.title === record.title && sha256Hex(decoded.html) === record.contentHash
+  return decoded.title === record.title && sha256Hex(decoded.rawHtml) === record.contentHash
     ? 'matched'
     : 'changed'
 }
@@ -124,6 +125,7 @@ export async function updateRecord(
   recordId: string
   operationId: string
   verification: { fetched: boolean; decrypted: boolean; contentMatched: boolean }
+  theme: ThemeId | null
   shareUrl?: string
 }> {
   validateUpdateAuthorization(request, profile, projectBindingHash)
@@ -136,6 +138,8 @@ export async function updateRecord(
       preview.projectRoot !== project.projectRoot ||
       preview.projectBindingHash !== projectBindingHash ||
       preview.contentHash !== request.expectedContentHash ||
+      preview.recordId !== record.recordId ||
+      preview.sourcePath !== record.sourcePath ||
       !preview.publishable
     ) {
       throw new ShareNoteError('content_blocked', 'Update preview is blocked or does not match the request')
@@ -209,6 +213,7 @@ export async function updateRecord(
         recordId: record.recordId,
         operationId,
         verification: { fetched: false, decrypted: false, contentMatched: false },
+        theme: preview.theme,
         warnings: ['The update may have been accepted. It was not retried.']
       }
     }
@@ -227,6 +232,7 @@ export async function updateRecord(
         recordId: record.recordId,
         operationId,
         verification: { fetched: false, decrypted: false, contentMatched: false },
+        theme: preview.theme,
         warnings: ['The server returned a different URL; the original record was not reported as successfully updated.']
       }
     }
@@ -238,7 +244,7 @@ export async function updateRecord(
         verification.fetched = true
         const decoded = await decodeSharePage(page.html, key)
         verification.decrypted = true
-        verification.contentMatched = decoded.title === preview.title && sha256Hex(decoded.html) === preview.contentHash
+        verification.contentMatched = decoded.title === preview.title && sha256Hex(decoded.rawHtml) === preview.contentHash
       }
     } catch {
       // The submitted state is persisted below without claiming verification.
@@ -253,6 +259,8 @@ export async function updateRecord(
       record.sourceHash = preview.sourceHash
       record.contentHash = preview.contentHash
       record.title = preview.title
+      if (preview.theme) record.theme = preview.theme
+      else delete record.theme
     }
     await project.saveRecord(record)
     await project.writeOperation(operation)
@@ -263,6 +271,7 @@ export async function updateRecord(
       recordId: record.recordId,
       operationId,
       verification,
+      theme: preview.theme,
       ...(request.returnShareUrl === true ? { shareUrl: `${record.shareUrl}#${key}` } : {}),
       warnings: verified ? [] : ['Update was submitted but did not pass read-back verification.']
     }
@@ -399,6 +408,7 @@ export async function listLocalRecords(
     sourcePath: string
     shareUrl: string
     status: string
+    theme?: ThemeId
     updatedAt: string
   }>
   pendingOperations: number
@@ -417,6 +427,7 @@ export async function listLocalRecords(
       sourcePath: record.sourcePath,
       shareUrl: record.shareUrl,
       status: record.status,
+      ...(record.theme ? { theme: record.theme } : {}),
       updatedAt: record.updatedAt
     })),
     pendingOperations,

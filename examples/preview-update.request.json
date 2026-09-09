@@ -1,0 +1,5 @@
+{
+  "sourcePath": "docs/report.md",
+  "projectRoot": "/absolute/path/to/project",
+  "recordId": "<existing project record ID>"
+}
