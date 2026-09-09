@@ -20,6 +20,26 @@
       "status": "verified",
       "createdAt": "2026-09-09T00:44:24.249Z",
       "updatedAt": "2026-09-09T00:44:25.415Z"
+    },
+    {
+      "schemaVersion": 1,
+      "recordId": "note-05213e07-115c-45e2-8168-5eda050c2c02",
+      "profile": "public",
+      "apiOrigin": "https://api.note.sx",
+      "webOrigin": "https://share.note.sx",
+      "identityRef": "plaintext-file:credentials:public",
+      "sourcePath": "README_CN.md",
+      "remoteFilename": "hl5s26an",
+      "shareUrl": "https://share.note.sx/hl5s26an",
+      "noteKeyRef": "project-file:notes:note-05213e07-115c-45e2-8168-5eda050c2c02",
+      "sourceHash": "dac5ecf8eb5ed3c87a62d6cff3bbbeae8ce4d063885f506253bb297a30d53627",
+      "contentHash": "43edd5f5e3027829065821ae41d6489108efb525fff72c9243ce1e0507a73b9c",
+      "title": "Share Note",
+      "theme": "simple",
+      "encrypted": true,
+      "status": "verified",
+      "createdAt": "2026-09-09T01:27:13.263Z",
+      "updatedAt": "2026-09-09T01:27:14.427Z"
     }
   ],
   "operations": [
@@ -36,6 +56,20 @@
       "createdAt": "2026-09-09T00:44:24.249Z",
       "updatedAt": "2026-09-09T00:44:25.900Z",
       "remoteUrl": "https://share.note.sx/m2msmsfi"
+    },
+    {
+      "schemaVersion": 1,
+      "operationId": "op-af16ee6e-09ee-4773-8d87-34c57ec434cc",
+      "action": "publish",
+      "recordId": "note-05213e07-115c-45e2-8168-5eda050c2c02",
+      "profile": "public",
+      "target": "https://share.note.sx",
+      "status": "verified",
+      "contentHash": "43edd5f5e3027829065821ae41d6489108efb525fff72c9243ce1e0507a73b9c",
+      "noteKeyRef": "project-file:notes:note-05213e07-115c-45e2-8168-5eda050c2c02",
+      "createdAt": "2026-09-09T01:27:13.263Z",
+      "updatedAt": "2026-09-09T01:27:14.924Z",
+      "remoteUrl": "https://share.note.sx/hl5s26an"
     }
   ]
 }

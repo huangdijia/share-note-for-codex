@@ -1,6 +1,6 @@
 {
   "name": "share-note",
-  "version": "0.1.0+codex.20260909010613",
+  "version": "0.1.0+codex.20260909012516",
   "description": "Preview, publish, read, update, list, and delete Share Note pages through a bundled local HTTP client.",
   "author": {
     "name": "Share Note for Codex contributors"
