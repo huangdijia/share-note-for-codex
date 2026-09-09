@@ -1,6 +1,6 @@
 # Acceptance report
 
-Date: 2026-09-02
+Date: 2026-09-09
 Target package: Share Note for Codex 0.1.0  
 Protocol profile: `note-sx-client-1.5.5`
 
@@ -8,7 +8,7 @@ Protocol profile: `note-sx-client-1.5.5`
 
 The automated suite uses Node.js, frozen page-ciphertext fixtures, temporary user-data/project directories, an in-memory SecretStore, the production plaintext-file credential store, project manifest/key stores, and an in-process mock that implements the audited Share Note wire behavior. The distributable client keeps plaintext API credentials in private user data and plaintext note keys in ignored project key files; it has no master-password or Keychain dependency.
 
-`npm run build` performs TypeScript checking, all tests, and the precompiled bundle build. The current local suite contains 87 passing tests across 13 unit, contract and clean-bundle acceptance files, including one-command browser setup, credential reuse, pending resume, validation before saving, project isolation/migration, and shipped-bundle checks. The routing Skill and bundle were rebuilt from this source.
+`npm run build` performs TypeScript checking, all tests, and the precompiled bundle build. The current local suite contains 98 passing tests across 13 unit, contract and clean-bundle acceptance files, including one-command browser setup, credential reuse, pending resume, validation before saving, project isolation/migration, and shipped-bundle checks. The routing Skill and bundle were rebuilt from this source.
 
 “Mock passed” proves local client behavior against the recorded contract; it is not evidence about a public or self-hosted service instance.
 
@@ -45,7 +45,7 @@ The automated suite uses Node.js, frozen page-ciphertext fixtures, temporary use
 
 ```text
 npm run typecheck  -> passed
-npm test           -> 12 files, 73 tests passed
+npm test           -> 13 files, 98 tests passed
 npm run bundle     -> built plugins/share-note/skills/share-note/scripts/share-note.mjs
 packaged plugin and clean-bundle acceptance -> passed
 plaintext secret-store round-trip/permissions/malformed-file tests -> passed
@@ -53,6 +53,12 @@ Windows/Linux/macOS data-directory branch tests -> passed
 browser setup unit/contract/leakage/bundle tests -> passed
 one-command setup and CLI integration tests -> passed (mock authentication only)
 ```
+
+## Codex browser binding verification (2026-09-09)
+
+- Contract and shipped-CLI tests passed for Codex prepare/resume/complete, token rejection before persistence, source/project/session mismatches, expiry/cancellation/replacement/replay, concurrent consumption and manual fallback.
+- In the current macOS Codex app, a disposable loopback mock served a labelled API key. The in-app browser opened the returned authorization URL and exposed the key in its page accessibility state. The agent started the bundled completion CLI with `--key-tty`, waited for the hidden-input prompt, then sent the mock token through `write_stdin`. The CLI returned `configured` and `authentication: accepted`, exited 0 and did not echo the token. The mock checked the UID, nonce/key hash and empty `check-files` body. A filesystem readback confirmed the project profile and consumed pending record. The temporary tab/server/data were cleaned up.
+- This smoke check proves the browser-to-terminal tool path against a local mock. It does not verify real public-service token presentation, redirects, login, or human verification. No real token or user profile was modified.
 
 ## Explicitly not executed
 

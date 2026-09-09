@@ -94,6 +94,135 @@ describe('browser-assisted setup contract', () => {
     expect(await filesBelow(path.join(dataDirectory, 'secrets', 'credentials'))).toEqual([])
   }
 
+  it('hands authorization to Codex, resumes it and completes a verified project binding', async () => {
+    const application = memoryApplication()
+    const request = selfHostedRequest()
+    const first = await application.setupCodexBrowser(request)
+    expect(first).toMatchObject({ status: 'awaiting_user', resumed: false, apiOrigin: server.apiBaseUrl })
+    expect(new URL(first.authorizationUrl!).searchParams.get('id')).toBe(server.uid)
+    expect(first.sessionId).toMatch(/^[a-f0-9]{64}$/)
+    expect(opened).toEqual([])
+    expect(server.requestLog).toEqual([])
+    await expectNotConfigured()
+    const second = await application.setupCodexBrowser(request)
+    expect(second).toMatchObject({ sessionId: first.sessionId, authorizationUrl: first.authorizationUrl, resumed: true })
+    environment[BROWSER_API_KEY_ENV_VAR] = server.apiKey
+    const result = await application.setupCodexBrowserComplete({ ...request, sessionId: first.sessionId! })
+    expect(result).toMatchObject({ action: 'setup-codex-browser-complete', status: 'configured', authentication: 'accepted' })
+    expect(JSON.stringify(result)).not.toContain(server.apiKey)
+    expect(JSON.stringify(result)).not.toContain(server.uid)
+    expect(environment[BROWSER_API_KEY_ENV_VAR]).toBeUndefined()
+    expect(server.requestLog.map((entry) => entry.path)).toEqual(['/v1/file/check-files'])
+    expect(JSON.parse(await readFile(path.join(workspace, '.openai', 'share-note.json'), 'utf8')).profile).toBe('private')
+    await expect(stat(path.join(dataDirectory, 'pending-setups', 'private.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(application.setupCodexBrowserComplete({ ...request, sessionId: first.sessionId! })).rejects.toMatchObject({ code: 'conflict' })
+    expect(await application.setupCodexBrowser(request)).toMatchObject({ status: 'configured', reusedCredential: true })
+    expect(opened).toEqual([])
+  })
+
+  it('rejects missing, incorrect and cross-project Codex sessions before authentication', async () => {
+    const application = memoryApplication()
+    const request = selfHostedRequest()
+    const prepared = await application.setupCodexBrowser(request)
+    for (const sessionId of ['', '0'.repeat(64)]) {
+      environment[BROWSER_API_KEY_ENV_VAR] = server.apiKey
+      await expect(application.setupCodexBrowserComplete({ ...request, sessionId })).rejects.toBeInstanceOf(Error)
+      expect(environment[BROWSER_API_KEY_ENV_VAR]).toBeUndefined()
+    }
+    const other = path.join(workspace, 'other')
+    await mkdir(other)
+    await expect(application.setupCodexBrowserComplete({
+      ...request, projectRoot: other, allowedSourceRoots: [workspace], sessionId: prepared.sessionId!
+    })).rejects.toMatchObject({ code: 'conflict' })
+    expect(server.requestLog).toEqual([])
+    await expectNotConfigured()
+  })
+
+  it('does not create a replacement pending session on expired or cancelled Codex completion', async () => {
+    const application = memoryApplication()
+    const request = selfHostedRequest()
+    const prepared = await application.setupCodexBrowser(request)
+    now += 61_000
+    environment[BROWSER_API_KEY_ENV_VAR] = server.apiKey
+    await expect(application.setupCodexBrowserComplete({ ...request, sessionId: prepared.sessionId! })).rejects.toMatchObject({ code: 'conflict' })
+    await expect(stat(path.join(dataDirectory, 'pending-setups', 'private.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+    const replacement = await application.setupCodexBrowser(request)
+    expect(replacement.sessionId).not.toBe(prepared.sessionId)
+    await expect(application.setupCodexBrowserComplete({ ...request, sessionId: prepared.sessionId! })).rejects.toMatchObject({ code: 'conflict' })
+    await application.setupBrowserComplete({ profile: 'private', cancel: true })
+    await expect(application.setupCodexBrowserComplete({ ...request, sessionId: replacement.sessionId! })).rejects.toMatchObject({ code: 'conflict' })
+    expect(opened).toEqual([])
+    expect(server.requestLog).toEqual([])
+    await expectNotConfigured()
+  })
+
+  it('retains the Codex session after missing or rejected tokens and validates before saving', async () => {
+    const application = new ShareNoteApplication(dataDirectory, new PlaintextFileSecretStore(dataDirectory), fetch, environment, dependencies)
+    const request = selfHostedRequest()
+    const prepared = await application.setupCodexBrowser(request)
+    const complete = { ...request, sessionId: prepared.sessionId! }
+    for (const apiKey of ['', 'wrong-key']) {
+      environment[BROWSER_API_KEY_ENV_VAR] = apiKey
+      await expect(application.setupCodexBrowserComplete(complete)).rejects.toBeInstanceOf(Error)
+      expect(environment[BROWSER_API_KEY_ENV_VAR]).toBeUndefined()
+      await expectNotConfigured()
+      expect(await application.setupCodexBrowser(request)).toMatchObject({ sessionId: prepared.sessionId })
+    }
+    environment[BROWSER_API_KEY_ENV_VAR] = server.apiKey
+    await expect(application.setupCodexBrowserComplete(complete)).resolves.toMatchObject({ status: 'configured' })
+  })
+
+  it('rejects changed Codex source configuration without opening or contacting a service', async () => {
+    const application = memoryApplication()
+    const request = selfHostedRequest()
+    const prepared = await application.setupCodexBrowser(request)
+    environment[BROWSER_API_KEY_ENV_VAR] = server.apiKey
+    await expect(application.setupCodexBrowserComplete({ ...request, maxSourceBytes: 1024, sessionId: prepared.sessionId! }))
+      .rejects.toMatchObject({ code: 'source_blocked' })
+    expect(server.requestLog).toEqual([])
+    expect(opened).toEqual([])
+    await expectNotConfigured()
+  })
+
+  it('allows only one concurrent Codex completion to consume a session', async () => {
+    const application = memoryApplication()
+    const request = selfHostedRequest()
+    const prepared = await application.setupCodexBrowser(request)
+    const complete = { ...request, sessionId: prepared.sessionId! }
+    environment[BROWSER_API_KEY_ENV_VAR] = server.apiKey
+    const first = application.setupCodexBrowserComplete(complete)
+    environment[BROWSER_API_KEY_ENV_VAR] = server.apiKey
+    const second = application.setupCodexBrowserComplete(complete)
+    const results = await Promise.allSettled([first, second])
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1)
+    expect(server.requestLog.map((entry) => entry.path)).toEqual(['/v1/file/check-files'])
+  })
+
+  it('can finish a Codex pending session through manual input without changing identity', async () => {
+    const application = memoryApplication()
+    const request = selfHostedRequest()
+    await application.setupCodexBrowser(request)
+    const readKey = vi.fn(async () => server.apiKey)
+    await expect(application.setupBrowser(request, readKey)).resolves.toMatchObject({ status: 'configured', resumed: true })
+    expect(readKey).toHaveBeenCalledOnce()
+    expect(opened).toEqual([])
+  })
+
+  it('rejects a project rebound after Codex prepare before authentication', async () => {
+    const application = memoryApplication()
+    const request = selfHostedRequest()
+    const prepared = await application.setupCodexBrowser(request)
+    environment.EXISTING_KEY = JSON.stringify({ uid: server.uid, apiKey: server.apiKey })
+    await application.setup({ ...request, profile: 'other', allowedSourceRoots: [workspace], credentialEnvVar: 'EXISTING_KEY' })
+    await application.configureProject({ projectRoot: workspace, profile: 'other' })
+    environment[BROWSER_API_KEY_ENV_VAR] = server.apiKey
+    await expect(application.setupCodexBrowserComplete({ ...request, sessionId: prepared.sessionId! })).rejects.toMatchObject({ code: 'conflict' })
+    expect(server.requestLog).toEqual([])
+    expect(JSON.parse(await readFile(path.join(workspace, '.openai', 'share-note.json'), 'utf8')).profile).toBe('other')
+    await expect(stat(path.join(dataDirectory, 'profiles', 'private.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('configures and binds a project in one call, then reuses the verified credential', async () => {
     const order: string[] = []
     dependencies.openBrowser = async (url, approvedOrigin) => {

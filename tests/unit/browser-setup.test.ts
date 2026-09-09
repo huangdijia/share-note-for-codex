@@ -71,7 +71,12 @@ describe('system browser setup primitives', () => {
   it('accepts terminal secrets without echoing them and rejects non-interactive input', async () => {
     const input = new PassThrough() as unknown as NodeJS.ReadStream & { setRawMode: ReturnType<typeof vi.fn> }
     Object.assign(input, { isTTY: true, isRaw: false, setRawMode: vi.fn() })
-    const write = vi.fn()
+    const write = vi.fn((text: string) => {
+      if (text === 'Key: ') {
+        expect(input.setRawMode).toHaveBeenCalledWith(true)
+        expect(input.listenerCount('data')).toBe(1)
+      }
+    })
     const output = { isTTY: true, write } as unknown as NodeJS.WriteStream
     const pending = readHiddenInput('Key: ', input, output)
     input.emit('data', Buffer.from('non-echoing-test-value\n'))

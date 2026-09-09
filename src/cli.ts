@@ -16,12 +16,13 @@ function usage(): never {
   throw new ShareNoteError('invalid_request', 'Usage: share-note.mjs <action> --request <json-file>, or share-note.mjs setup-browser')
 }
 
-async function requestFromArguments(arguments_: string[]): Promise<{ action: string; request: Record<string, unknown> }> {
+async function requestFromArguments(arguments_: string[]): Promise<{ action: string; request: Record<string, unknown>; keyFromTty?: boolean }> {
   const [action, flag, requestPath, ...rest] = arguments_
-  if (action === 'setup-browser' && arguments_.length === 1) {
+  if ((action === 'setup-browser' || action === 'setup-codex-browser') && arguments_.length === 1) {
     return { action, request: { profile: 'public', service: 'public', projectRoot: process.cwd() } }
   }
-  if (!action || flag !== '--request' || !requestPath || rest.length > 0) usage()
+  const keyFromTty = action === 'setup-codex-browser-complete' && rest.length === 1 && rest[0] === '--key-tty'
+  if (!action || flag !== '--request' || !requestPath || (rest.length > 0 && !keyFromTty)) usage()
   const resolved = path.resolve(requestPath)
   const contents = await readFile(resolved, 'utf8')
   if (Buffer.byteLength(contents) > 1024 * 1024) {
@@ -31,11 +32,11 @@ async function requestFromArguments(arguments_: string[]): Promise<{ action: str
   if (!request || typeof request !== 'object' || Array.isArray(request)) {
     throw new ShareNoteError('invalid_request', 'Request file must contain one JSON object')
   }
-  return { action, request: request as Record<string, unknown> }
+  return { action, request: request as Record<string, unknown>, keyFromTty }
 }
 
 async function main(): Promise<void> {
-  const { action, request } = await requestFromArguments(process.argv.slice(2))
+  const { action, request, keyFromTty } = await requestFromArguments(process.argv.slice(2))
   const dataDirectory = userDataDirectory()
   const application = new ShareNoteApplication(
     dataDirectory,
@@ -82,6 +83,21 @@ async function main(): Promise<void> {
     }
     case 'setup-browser-start':
       result = await application.setupBrowserStart(request as never)
+      break
+    case 'setup-codex-browser':
+      delete process.env[BROWSER_API_KEY_ENV_VAR]
+      result = await application.setupCodexBrowser(request as unknown as SetupBrowserRequest)
+      break
+    case 'setup-codex-browser-complete':
+      try {
+        if (keyFromTty) {
+          delete process.env[BROWSER_API_KEY_ENV_VAR]
+          process.env[BROWSER_API_KEY_ENV_VAR] = await readHiddenInput('Share Note API key: ')
+        }
+        result = await application.setupCodexBrowserComplete(request as never)
+      } finally {
+        delete process.env[BROWSER_API_KEY_ENV_VAR]
+      }
       break
     case 'setup-browser-complete': {
       const completeRequest = request as unknown as SetupBrowserCompleteRequest
